@@ -9,7 +9,11 @@ configure a Netty server bootstrap instance and dynamic add or remove channel ha
 
 ## Install
 
-Refer to the [Releases](releases) page for the latest zipped p2 repository.
+Refer to the Releases page for the latest zipped p2 repository.
+
+## Example
+
+Refer to the [example application component](io.blesmol.netty.example/src/io/blesmol/netty/example/Application.java). Note its usage of `immediate=true`. Without this, the component may stay in a `REGISTERED` OSGi state instead of `ACTIVE`. Instead, immediately activate it.
 
 ## Use
 

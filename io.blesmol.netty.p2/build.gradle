@@ -45,7 +45,7 @@ platform {
     bundle 'io.netty:netty-codec:4.1.20.Final'
     bundle 'io.netty:netty-buffer:4.1.20.Final'
 
-	for (name in ['io.blesmol.netty.api', 'io.blesmol.netty.provider', 'io.blesmol.netty.util']) {
+	for (name in ['io.blesmol.netty.api', 'io.blesmol.netty.provider', 'io.blesmol.netty.example', 'io.blesmol.netty.util']) {
       bundle fileTree(bnd.project.workspace.getProject(name).target) {
         include '*.jar'
       }

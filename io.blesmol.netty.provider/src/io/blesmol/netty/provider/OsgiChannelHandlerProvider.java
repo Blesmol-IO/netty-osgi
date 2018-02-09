@@ -12,6 +12,7 @@ import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
+import org.osgi.service.component.annotations.ServiceScope;
 
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.OsgiChannelHandler;
@@ -22,7 +23,8 @@ import io.netty.channel.ChannelPipeline;
 
 @Component(
 	configurationPid= Configuration.OSGI_CHANNEL_HANDLER_PID,
-	configurationPolicy= ConfigurationPolicy.REQUIRE
+	configurationPolicy= ConfigurationPolicy.REQUIRE,
+	scope=ServiceScope.PROTOTYPE
 )
 public class OsgiChannelHandlerProvider implements OsgiChannelHandler {
 
