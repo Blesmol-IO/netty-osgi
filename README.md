@@ -22,19 +22,19 @@ Refer to the [Releases](releases) page for the latest zipped p2 repository.
 
 ## References
 
-* ["Netty User Guide for 4.x"](http://netty.io/wiki/user-guide-for-4.x.html)
+* [Netty User Guide for 4.x](http://netty.io/wiki/user-guide-for-4.x.html)
 
-* ["Bndtools Tutorial"](http://bndtools.org/tutorial.html)
+* [Bndtools Tutorial](http://bndtools.org/tutorial.html)
 
-* ["Getting Started with OSGi Declarative Services"](http://blog.vogella.com/2016/06/21/getting-started-with-osgi-declarative-services/)
+* [Getting Started with OSGi Declarative Services](http://blog.vogella.com/2016/06/21/getting-started-with-osgi-declarative-services/)
 
-* ["What's New in Declarative Services 1.3?"](http://njbartlett.name/2015/08/17/osgir6-declarative-services.html)
+* [What's New in Declarative Services 1.3?](http://njbartlett.name/2015/08/17/osgir6-declarative-services.html)
 
-* ["Service Components"](http://enroute.osgi.org/doc/217-ds.html)
+* [Service Components](http://enroute.osgi.org/doc/217-ds.html)
 
-* ["Control OSGi DS Component Instances"](http://blog.vogella.com/2017/02/13/control-osgi-ds-component-instances/)
+* [Control OSGi DS Component Instances](http://blog.vogella.com/2017/02/13/control-osgi-ds-component-instances/)
 
-* ["Control OSGi DS Component Instances via Configuration Admin"](http://blog.vogella.com/2017/02/24/control-osgi-ds-component-instances-via-configuration-admin/)
+* [Control OSGi DS Component Instances via Configuration Admin](http://blog.vogella.com/2017/02/24/control-osgi-ds-component-instances-via-configuration-admin/)
 
 ## Todos
 
