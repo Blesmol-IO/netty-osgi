@@ -1,0 +1,54 @@
+buildscript {
+	repositories {
+		jcenter()
+	}
+	dependencies {
+		classpath 'org.standardout:bnd-platform:1.5.0'
+	}
+}
+apply plugin: 'org.standardout.bnd-platform'
+
+ext.eclipseDownloadParentDir = "$System.env.HOME"
+
+
+repositories {
+	jcenter()
+}
+dependencies {
+	platform 'io.netty:netty-handler:4.1.20.Final'
+    platform 'io.netty:netty-common:4.1.20.Final'
+    platform 'io.netty:netty-transport:4.1.20.Final'
+    platform 'io.netty:netty-resolver:4.1.20.Final'
+    platform 'io.netty:netty-codec:4.1.20.Final'
+    platform 'io.netty:netty-buffer:4.1.20.Final'
+}
+
+platform {
+	// cache eclipse in home to prevent 180M+ download each time
+	downloadsDir = new File(eclipseDownloadParentDir, '.eclipse-downloads')
+
+	// Clean up category and feature names/ids/versions
+	categoryName = "Blesmol Netty OSGi"
+	categoryId = "io.blesmol.netty.category"
+	featureName = "Blesmol Netty OSGi All"
+	featureId = "io.blesmol.netty.feature.all"
+	featureVersion = bnd('Bundle-Version')
+	useFeatureHashQualifiers = false
+
+    // doesn't seem like there's an easy way to enumerate this via Project or Workspace
+    // Project.build() && Project.getImports() returns just the packages
+    // So, manually adding here and above
+	bundle 'io.netty:netty-handler:4.1.20.Final'
+    bundle 'io.netty:netty-common:4.1.20.Final'
+    bundle 'io.netty:netty-transport:4.1.20.Final'
+    bundle 'io.netty:netty-resolver:4.1.20.Final'
+    bundle 'io.netty:netty-codec:4.1.20.Final'
+    bundle 'io.netty:netty-buffer:4.1.20.Final'
+
+	for (name in ['io.blesmol.netty.api', 'io.blesmol.netty.provider', 'io.blesmol.netty.util']) {
+      bundle fileTree(bnd.project.workspace.getProject(name).target) {
+        include '*.jar'
+      }
+    }
+   
+}

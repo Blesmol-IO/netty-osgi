@@ -1,0 +1,68 @@
+# This is the version of JUnit that will be used at build time and run time
+junit: org.apache.servicemix.bundles.junit;version="[4.11,5)"
+
+# This is the version of Mockito that will be used at build time and run time
+mockito: org.mockito.mockito-core;version="[2.1,3)",\
+  org.objenesis;version="[2.1,3)"
+
+# Discover and run all test cases annotated with the @RunWith annotation
+Test-Cases: ${classes;CONCRETE;ANNOTATED;org.junit.runner.RunWith}
+
+# Build dependencies 
+-buildpath: \
+	${junit},\
+	${mockito},\
+	osgi.annotation;version=6.0.1,\
+	osgi.core;version=6.0,\
+	osgi.cmpn;version=6.0,\
+	io.blesmol.netty.api;version=latest,\
+	io.netty.transport;version=4.1,\
+	io.netty.common;version=4.1,\
+	io.blesmol.netty.util;version=latest,\
+	io.netty.buffer;version=4.1
+
+javac.source: 1.8
+javac.target: 1.8
+
+# We need JUnit and Mockito to resolve the test cases at runtime. 
+# Other runtime dependencies should be added as necessary
+-runbundles: \
+	io.blesmol.netty.test;version=snapshot,\
+	net.bytebuddy.byte-buddy;version='[1.7.10,1.7.11)',\
+	net.bytebuddy.byte-buddy-agent;version='[1.7.10,1.7.11)',\
+	org.apache.servicemix.bundles.junit;version='[4.12.0,4.12.1)',\
+	org.mockito.mockito-core;version='[2.13.0,2.13.1)',\
+	org.objenesis;version='[2.6.0,2.6.1)',\
+	io.netty.buffer;version='[4.1.20,4.1.21)',\
+	io.netty.common;version='[4.1.20,4.1.21)',\
+	io.netty.resolver;version='[4.1.20,4.1.21)',\
+	io.netty.transport;version='[4.1.20,4.1.21)',\
+	org.apache.felix.configadmin;version='[1.8.16,1.8.17)',\
+	org.apache.felix.eventadmin;version='[1.4.10,1.4.11)',\
+	org.apache.felix.gogo.command;version='[1.0.2,1.0.3)',\
+	org.apache.felix.gogo.runtime;version='[1.0.10,1.0.11)',\
+	org.apache.felix.log;version='[1.0.1,1.0.2)',\
+	org.apache.felix.gogo.shell;version='[1.0.0,1.0.1)',\
+	io.blesmol.netty.provider;version=snapshot,\
+	org.apache.felix.scr;version='[2.0.14,2.0.15)',\
+	io.blesmol.netty.util;version=snapshot
+
+Bundle-Version: 0.1.0.${tstamp}
+Private-Package: io.blesmol.netty.provider
+
+# Needed for Mockito's mocking to work
+-runsystempackages.objenesis: sun.misc,sun.reflect
+
+# Use Felix by default
+-runfw: org.apache.felix.framework;version=5
+-runvm: -ea
+-runrequires: \
+	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.test)',\
+	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.gogo.command)(version>=1.0.2))',\
+	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.log)(version>=1.0.1))',\
+	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.eventadmin)(version>=1.4.10))',\
+	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.gogo.shell)(version>=1.0.0))',\
+	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.gogo.runtime)(version>=1.0.10))',\
+	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.provider)',\
+	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.util)'
+-runee: JavaSE-1.8

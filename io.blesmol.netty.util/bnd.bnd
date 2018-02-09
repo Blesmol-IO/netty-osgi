@@ -1,0 +1,21 @@
+-buildpath: \
+	osgi.annotation;version=6.0.1,\
+	osgi.core;version=6.0,\
+	osgi.cmpn;version=6.0,\
+	io.blesmol.netty.api;version=latest
+
+-testpath: \
+	${junit}
+
+javac.source: 1.8
+javac.target: 1.8
+
+Bundle-Version: 0.1.0.${tstamp}
+Export-Package: io.blesmol.netty.util
+-runfw: org.apache.felix.framework;version='[5.6.10,5.6.10]'
+-runee: JavaSE-1.8
+-runrequires: osgi.identity;filter:='(osgi.identity=io.blesmol.netty.util)'
+-runbundles: \
+	io.blesmol.netty.util;version=snapshot,\
+	org.apache.felix.configadmin;version='[1.8.16,1.8.17)',\
+	org.apache.felix.scr;version='[2.0.14,2.0.15)'
