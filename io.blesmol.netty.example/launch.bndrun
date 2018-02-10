@@ -8,7 +8,6 @@
 -runbundles: \
 	io.blesmol.netty.example;version=snapshot,\
 	io.blesmol.netty.provider;version=snapshot,\
-	io.blesmol.netty.util;version=snapshot,\
 	io.netty.buffer;version='[4.1.20,4.1.21)',\
 	io.netty.common;version='[4.1.20,4.1.21)',\
 	io.netty.resolver;version='[4.1.20,4.1.21)',\

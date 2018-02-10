@@ -1,7 +1,9 @@
 package io.blesmol.netty.api;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 
 /**
  * <p>
@@ -11,6 +13,16 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
  */
 public interface Configuration {
 
+	String NETTY_CLIENT_PID = "io.blesmol.netty.api.NettyClient";
+	@interface NettyClient {
+		String appName();
+		String destinationHost();
+		int destinationPort();
+		Class<? extends Channel> channel() default NioSocketChannel.class;
+		boolean optionAutoRead() default true;
+	}
+	
+	
 	String NETTY_SERVER_PID = "io.blesmol.netty.api.NettyServer";
 	@interface NettyServer {
 		String appName();

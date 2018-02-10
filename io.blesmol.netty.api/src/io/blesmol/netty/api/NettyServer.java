@@ -21,5 +21,5 @@ public interface NettyServer {
 	 * 
 	 * @return The bind channel future
 	 */
-	ChannelFuture bindFuture();
+	ChannelFuture future();
 }

@@ -18,7 +18,6 @@ Test-Cases: ${classes;CONCRETE;ANNOTATED;org.junit.runner.RunWith}
 	io.blesmol.netty.api;version=latest,\
 	io.netty.transport;version=4.1,\
 	io.netty.common;version=4.1,\
-	io.blesmol.netty.util;version=latest,\
 	io.netty.buffer;version=4.1
 
 javac.source: 1.8
@@ -44,8 +43,7 @@ javac.target: 1.8
 	org.apache.felix.log;version='[1.0.1,1.0.2)',\
 	org.apache.felix.gogo.shell;version='[1.0.0,1.0.1)',\
 	io.blesmol.netty.provider;version=snapshot,\
-	org.apache.felix.scr;version='[2.0.14,2.0.15)',\
-	io.blesmol.netty.util;version=snapshot
+	org.apache.felix.scr;version='[2.0.14,2.0.15)'
 
 Bundle-Version: 0.1.0.${tstamp}
 Private-Package: io.blesmol.netty.provider
@@ -63,6 +61,5 @@ Private-Package: io.blesmol.netty.provider
 	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.eventadmin)(version>=1.4.10))',\
 	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.gogo.shell)(version>=1.0.0))',\
 	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.gogo.runtime)(version>=1.0.10))',\
-	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.provider)',\
-	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.util)'
+	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.provider)'
 -runee: JavaSE-1.8

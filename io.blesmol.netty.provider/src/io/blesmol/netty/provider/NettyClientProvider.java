@@ -10,44 +10,43 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceScope;
 
 import io.blesmol.netty.api.Configuration;
-import io.blesmol.netty.api.NettyServer;
-import io.netty.bootstrap.ServerBootstrap;
+import io.blesmol.netty.api.NettyClient;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 
-@Component(configurationPid = Configuration.NETTY_SERVER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, immediate = true)
-public class NettyServerProvider implements NettyServer {
+@Component(configurationPid = Configuration.NETTY_CLIENT_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, immediate = true)
+public class NettyClientProvider implements NettyClient {
 
 	private ChannelFuture future;
 
 	@Reference(scope = ReferenceScope.PROTOTYPE)
-	ServerBootstrap server;
+	Bootstrap bootstrap;
 
 	@Reference(scope = ReferenceScope.PROTOTYPE)
-	EventLoopGroup bossGroup;
-
-	@Reference(scope = ReferenceScope.PROTOTYPE)
-	EventLoopGroup workerGroup;
+	EventLoopGroup group;
 
 	@Reference
 	ChannelInitializer<SocketChannel> channelInitializer;
 
 	@Activate
-	void activate(Configuration.NettyServer config, Map<String, ?> properties) {
-		server.group(bossGroup, workerGroup).channel(config.channel()).childHandler(channelInitializer)
-				// TODO: consider making options configurable
-				.option(ChannelOption.SO_BACKLOG, 128).childOption(ChannelOption.SO_KEEPALIVE, true);
-		future = server.bind(config.inetHost(), config.inetPort());
+	void activate(Configuration.NettyClient config, Map<String, ?> properties) {
+		bootstrap.group(group).channel(config.channel()).handler(channelInitializer);
+
+		if (!config.optionAutoRead()) {
+			// https://stackoverflow.com/a/28294255
+			bootstrap.option(ChannelOption.AUTO_READ, false);
+		}
+
+		future = bootstrap.connect(config.destinationHost(), config.destinationPort());
 	}
 
 	@Deactivate
-	void deactivate(Configuration.NettyServer config, Map<String, ?> properties) {
-		// Gracefully clean-up
-		workerGroup.shutdownGracefully();
-		bossGroup.shutdownGracefully();
+	void deactivate(Configuration.NettyClient config) {
+		group.shutdownGracefully();
 	}
 
 	@Override

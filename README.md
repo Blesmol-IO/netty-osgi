@@ -45,7 +45,6 @@ Refer to the [example application component](io.blesmol.netty.example/src/io/ble
 * All the `TODO` comments
 * Units tests
 * Javadocs
-* Refactor the code to remove the utils project
 * Maybe refactor the channel initializer to be a prototype. Then it shouldn't
   need to be configured. Or keep it as is, dunno.
 * Stress test case that adds 100s of embedded channels, each w/ scores of handlers

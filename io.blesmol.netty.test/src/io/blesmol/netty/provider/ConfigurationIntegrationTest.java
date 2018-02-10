@@ -72,11 +72,11 @@ public class ConfigurationIntegrationTest {
         // Verify service creation and pipeline being established
         NettyServer server = getService(NettyServer.class, 3000, appName);
         assertNotNull(server);
-        assertNotNull(server.bindFuture());
+        assertNotNull(server.future());
 
         // Setup latch
         final CountDownLatch latch = new CountDownLatch(1);
-        server.bindFuture().channel().closeFuture().addListener(new ChannelFutureListener() {
+        server.future().channel().closeFuture().addListener(new ChannelFutureListener() {
 			@Override
 			public void operationComplete(ChannelFuture future) throws Exception {
 				latch.countDown();

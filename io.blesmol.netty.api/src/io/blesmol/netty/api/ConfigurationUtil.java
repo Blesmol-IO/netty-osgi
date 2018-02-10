@@ -1,5 +1,8 @@
 package io.blesmol.netty.api;
 
+import org.osgi.annotation.versioning.ProviderType;
+
+@ProviderType
 public interface ConfigurationUtil {
 
 	void createApplication(String appName, String hostname, Integer port) throws Exception;

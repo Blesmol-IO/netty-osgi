@@ -1,4 +1,4 @@
-package io.blesmol.netty.util;
+package io.blesmol.netty.provider;
 
 import java.util.Map;
 
