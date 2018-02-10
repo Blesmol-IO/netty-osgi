@@ -8,17 +8,17 @@ import org.osgi.service.component.annotations.ReferenceScope;
 
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.OsgiChannelHandler;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
 
 @Component(
 		service=ChannelInitializer.class,
 		configurationPid= Configuration.CHANNEL_INITIALIZER_PID,
 		configurationPolicy=ConfigurationPolicy.REQUIRE
 	)
-public class SocketChannelInitializerProvider extends ChannelInitializer<SocketChannel> {
+public class ChannelInitializerProvider<S extends Channel> extends ChannelInitializer<S> {
 
 	/*
 	 * Obtain a component service object to create prototype-scoped channels on-demand
@@ -31,7 +31,7 @@ public class SocketChannelInitializerProvider extends ChannelInitializer<SocketC
 	ComponentServiceObjects<OsgiChannelHandler> channelHandlerFactory;
 
 	@Override
-	protected void initChannel(SocketChannel ch) throws Exception {
+	protected void initChannel(S ch) throws Exception {
 
 		// Create a new on-demand service per channel
 		final OsgiChannelHandler handler = channelHandlerFactory.getService();
