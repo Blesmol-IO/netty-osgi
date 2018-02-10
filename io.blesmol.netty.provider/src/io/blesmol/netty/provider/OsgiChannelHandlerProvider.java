@@ -24,7 +24,8 @@ import io.netty.channel.ChannelPipeline;
 @Component(
 	configurationPid= Configuration.OSGI_CHANNEL_HANDLER_PID,
 	configurationPolicy= ConfigurationPolicy.REQUIRE,
-	scope=ServiceScope.PROTOTYPE
+	scope=ServiceScope.PROTOTYPE,
+	immediate=true
 )
 public class OsgiChannelHandlerProvider implements OsgiChannelHandler {
 
