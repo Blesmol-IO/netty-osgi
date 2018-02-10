@@ -20,7 +20,8 @@ import io.netty.channel.socket.SocketChannel;
 
 @Component(
 	configurationPid = Configuration.NETTY_SERVER_PID,
-	configurationPolicy = ConfigurationPolicy.REQUIRE
+	configurationPolicy = ConfigurationPolicy.REQUIRE,
+	immediate=true
 )
 public class NettyServerProvider implements NettyServer {
 
