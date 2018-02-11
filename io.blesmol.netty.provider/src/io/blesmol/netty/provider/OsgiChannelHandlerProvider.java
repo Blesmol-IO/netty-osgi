@@ -104,7 +104,7 @@ public class OsgiChannelHandlerProvider implements OsgiChannelHandler {
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		cause.printStackTrace();
-		throw new Exception(cause);
+		// throw new Exception(cause);
 	}
 
 	boolean addHandlerToPipeline(ChannelPipeline pipeline, ChannelHandlerConfig config, ChannelHandler handler) {
@@ -120,7 +120,13 @@ public class OsgiChannelHandlerProvider implements OsgiChannelHandler {
 				pipeline.addLast(config.getHandleName(), handler);
 			}
 		} catch (IllegalArgumentException | NullPointerException e) {
-			// TODO log
+			// WARNING: An exceptionCaught() event was fired, and it reached at the tail of
+			// the pipeline. It usually means the last handler in the pipeline did not
+			// handle the exception.
+			// io.netty.channel.ChannelPipelineException:
+			// io.blesmol.netty.provider.OsgiChannelHandlerProvider.handlerAdded() has
+			// thrown an exception; removed.
+
 			// Thrown if the pipeline already contains the handler
 			// indicating this thread lost the race, or handler is now null
 			result = false;

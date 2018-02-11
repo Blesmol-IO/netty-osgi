@@ -18,7 +18,7 @@ import io.netty.channel.ChannelInitializer;
 		configurationPid= Configuration.CHANNEL_INITIALIZER_PID,
 		configurationPolicy=ConfigurationPolicy.REQUIRE
 	)
-public class ChannelInitializerProvider<S extends Channel> extends ChannelInitializer<S> {
+public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 	/*
 	 * Obtain a component service object to create prototype-scoped channels on-demand
@@ -31,7 +31,7 @@ public class ChannelInitializerProvider<S extends Channel> extends ChannelInitia
 	ComponentServiceObjects<OsgiChannelHandler> channelHandlerFactory;
 
 	@Override
-	protected void initChannel(S ch) throws Exception {
+	protected void initChannel(Channel ch) throws Exception {
 
 		// Create a new on-demand service per channel
 		final OsgiChannelHandler handler = channelHandlerFactory.getService();
