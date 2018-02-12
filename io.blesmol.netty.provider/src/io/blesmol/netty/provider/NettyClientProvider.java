@@ -29,7 +29,7 @@ public class NettyClientProvider implements NettyClient {
 	@Reference(scope = ReferenceScope.PROTOTYPE)
 	EventLoopGroup group;
 
-	@Reference
+	@Reference(scope = ReferenceScope.PROTOTYPE)
 	ChannelInitializer<SocketChannel> channelInitializer;
 
 	@Activate

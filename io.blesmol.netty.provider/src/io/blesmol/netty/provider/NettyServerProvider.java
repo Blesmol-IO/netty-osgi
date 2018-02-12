@@ -32,7 +32,7 @@ public class NettyServerProvider implements NettyServer {
 	@Reference(scope = ReferenceScope.PROTOTYPE)
 	EventLoopGroup workerGroup;
 
-	@Reference
+	@Reference(scope = ReferenceScope.PROTOTYPE)
 	ChannelInitializer<SocketChannel> channelInitializer;
 
 	@Activate
