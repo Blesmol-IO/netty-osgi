@@ -3,6 +3,7 @@ package io.blesmol.netty.provider;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -67,7 +68,7 @@ public class ConfigurationIntegrationTest {
 		// Create the server config, channel initializer, and dynamic handler
         configUtil.createNettyServerConfig(appName, "localhost", 5308);
         configUtil.createChannelInitializerConfig(appName);
-        configUtil.createOsgiChannelHandlerConfig(appName);
+        configUtil.createOsgiChannelHandlerConfig(appName, new ArrayList<>());
 
         // Verify service creation and pipeline being established
         NettyServer server = getService(NettyServer.class, 3000, appName);

@@ -15,8 +15,8 @@ public interface Property {
 		String CHANNEL = "channel";
 	}
 
-	interface OsgiChannelHandler {
-		String APP_NAME = Property.APP_NAME;
+	interface OsgiChannelHandler extends Property {
+		String HANDLERS = "handlers";
 	}
 
 	/**
