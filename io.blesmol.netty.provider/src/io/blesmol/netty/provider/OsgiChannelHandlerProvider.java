@@ -61,7 +61,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 //	@Reference
 //	ExecutorService executor;
 
-	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.OPTIONAL, name = "channelHandler")
+	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE, name = "channelHandler")
 	void setChannelHandler(ChannelHandler handler, Map<String, Object> props) {
 		try {
 			String handlerName = (String) props.get(Property.ChannelHandler.HANDLE_NAME);
