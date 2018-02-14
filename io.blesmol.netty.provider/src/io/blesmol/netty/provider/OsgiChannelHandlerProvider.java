@@ -84,9 +84,9 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 		} catch (NullPointerException e) {
 			// TODO: log
-			String errMessage = "Error: set handler '%s' does not have a string property named '%s', ignoring. Is the '%s' target set correctly?";
+			String errMessage = "Error: set handler '%s' does not have a string property named '%s', ignoring. Is the '%s' target set correctly? Properties:\n%s";
 			System.err.println(String.format(errMessage, handler.toString(), Property.ChannelHandler.HANDLE_NAME,
-					ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER));
+					ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER, props));
 		}
 	}
 

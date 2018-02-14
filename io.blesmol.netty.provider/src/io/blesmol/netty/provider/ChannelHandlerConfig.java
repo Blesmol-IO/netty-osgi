@@ -7,13 +7,9 @@ import io.blesmol.netty.api.Property;
 public class ChannelHandlerConfig {
 
 	public static final String EMPTY = "";
-	
+
 	protected String appName;
 	protected String handleName;
-	protected String before;
-	protected String after;
-	protected Boolean first;
-	protected Boolean last;
 
 	public String getAppName() {
 		return appName;
@@ -31,47 +27,11 @@ public class ChannelHandlerConfig {
 		this.handleName = handleName;
 	}
 
-	public String getBefore() {
-		return before;
-	}
-
-	public void setBefore(String before) {
-		this.before = before;
-	}
-
-	public String getAfter() {
-		return after;
-	}
-
-	public void setAfter(String after) {
-		this.after = after;
-	}
-
-	public Boolean getFirst() {
-		return first;
-	}
-
-	public void setFirst(Boolean first) {
-		this.first = first;
-	}
-
-	public Boolean getLast() {
-		return last;
-	}
-
-	public void setLast(Boolean last) {
-		this.last = last;
-	}
-
 	public static ChannelHandlerConfig fromMap(Map<String, Object> map) {
 
 		ChannelHandlerConfig result = new ChannelHandlerConfig();
 		result.handleName = (String) map.getOrDefault(Property.ChannelHandler.HANDLE_NAME, EMPTY);
 		result.appName = (String) map.getOrDefault(Property.APP_NAME, EMPTY);
-		result.before = (String) map.getOrDefault(Property.ChannelHandler.BEFORE, EMPTY);
-		result.after = (String) map.getOrDefault(Property.ChannelHandler.AFTER, EMPTY);
-		result.first = (Boolean) map.getOrDefault(Property.ChannelHandler.FIRST, false);
-		result.last = (Boolean) map.getOrDefault(Property.ChannelHandler.LAST, false);
 		return result;
 	}
 
@@ -110,5 +70,5 @@ public class ChannelHandlerConfig {
 	public String toString() {
 		return appName + "::" + handleName;
 	}
-	
+
 }
