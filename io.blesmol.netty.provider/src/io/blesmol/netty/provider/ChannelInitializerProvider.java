@@ -39,7 +39,9 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 			@Override
 			public void operationComplete(ChannelFuture future) throws Exception {
 				if (channelHandlerFactory != null) {
-					channelHandlerFactory.ungetService(handler);
+					// TODO: log
+					System.out.println("Channel initializer provider: would have removed handler " + handler);
+//					channelHandlerFactory.ungetService(handler);
 				}
 
 			}
