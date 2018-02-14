@@ -34,6 +34,7 @@ public interface Configuration {
 	String OSGI_CHANNEL_HANDLER_PID = "io.blesmol.netty.api.OsgiChannelHandler";
 	@interface OsgiChannelHandler {
 		String appName();
+		String[] handlers();
 	}
 
 	// Note: no common PID is used for channel handlers since each
@@ -41,10 +42,6 @@ public interface Configuration {
 	@interface ChannelHandler {
 		String appName();
 		String handleName();
-		boolean first() default false;
-		boolean last() default true;
-		String before() default "";
-		String after() default "";
 	}
 
 	String CHANNEL_INITIALIZER_PID = "io.netty.channel.ChannelInitializer";

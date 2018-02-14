@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -79,7 +80,7 @@ public class RoundtripClientServerTest {
 	@Before
 	public void before() throws Exception {
 		configUtil = getService(ConfigurationUtil.class, 700);
-        configUtil.createApplication(appName, hostname, port);
+        configUtil.createApplication(appName, hostname, port, Arrays.asList(TestServerHandler.class.getName()));
 		server = getService(NettyServer.class, 3000, appName);
 	}
 

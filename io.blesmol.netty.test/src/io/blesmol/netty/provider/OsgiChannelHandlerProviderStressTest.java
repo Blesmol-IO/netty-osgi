@@ -2,6 +2,7 @@ package io.blesmol.netty.provider;
 
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -72,7 +73,7 @@ public class OsgiChannelHandlerProviderStressTest {
 
 		configUtil = getService(ConfigurationUtil.class, 700);
 
-		configUtil.createOsgiChannelHandlerConfig(appName);
+		configUtil.createOsgiChannelHandlerConfig(appName, new ArrayList<>());
 
 		dynamicHandler = getService(OsgiChannelHandler.class, 1000, appName);
 	}
@@ -100,14 +101,10 @@ public class OsgiChannelHandlerProviderStressTest {
 			});
 		}
 
-		// Add dynamic handler to channel. Use a string so as not to directly
-		// depend on the provider bundle
+		// Add dynamic handler to channel.
 		// TODO: add 1000 channels and test here
 		EmbeddedChannel ch = new EmbeddedChannel();
-		
-		// Add handler then immediately remove to trigger
 		ch.pipeline().addLast(dynamicHandler);
-		ch.pipeline().remove(dynamicHandler);
 
 		// Start a thread that simulates removing handlers
 		final ExecutorService unregisterExecutor = Executors.newFixedThreadPool(threadPoolSize);
@@ -120,9 +117,6 @@ public class OsgiChannelHandlerProviderStressTest {
 					}
 				});
 			});
-
-		ch.pipeline().addLast(dynamicHandler);
-		ch.pipeline().remove(dynamicHandler);
 
 		// Verify
 		assertTrue(registerLatch.await(3, TimeUnit.SECONDS));

@@ -41,10 +41,10 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	List<Configuration> configurations = new CopyOnWriteArrayList<>();
 
 	@Override
-	public void createApplication(String appName, String hostname, Integer port) throws Exception {
+	public void createApplication(String appName, String hostname, Integer port, List<String> handlers) throws Exception {
         createNettyServerConfig(appName, hostname, port);
         createChannelInitializerConfig(appName);
-        createOsgiChannelHandlerConfig(appName);
+        createOsgiChannelHandlerConfig(appName, handlers);
 	}
 
 	@Override
@@ -61,15 +61,17 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
-	public void createOsgiChannelHandlerConfig(String appName) throws Exception {
+	public void createOsgiChannelHandlerConfig(String appName, List<String> handlers) throws Exception {
 
 		Configuration config = admin
 				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, "?");
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.APP_NAME, appName);
+		props.put(Property.OsgiChannelHandler.APP_NAME, appName);
 		// bind the app name to the target reference
 		props.put(ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER + ".target",
 				String.format("(%s=%s)", Property.APP_NAME, appName));
+		// Add empty handler list
+		props.put(Property.OsgiChannelHandler.HANDLERS, handlers.toArray(new String[0]));
 		config.update(props);
 		configurations.add(config);
 	}
