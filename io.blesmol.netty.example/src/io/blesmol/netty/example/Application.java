@@ -1,5 +1,7 @@
 package io.blesmol.netty.example;
 
+import java.util.ArrayList;
+
 import org.osgi.service.component.annotations.*;
 
 import io.blesmol.netty.api.ConfigurationUtil;
@@ -12,7 +14,7 @@ public class Application {
 
 	@Activate
 	void activate() throws Exception {
-		configUtil.createApplication(Application.class.getName(), "localhost", 8484);
+		configUtil.createApplication(Application.class.getName(), "localhost", 8484, new ArrayList<>());
 	}
 
 	@Deactivate
