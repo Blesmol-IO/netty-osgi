@@ -14,4 +14,8 @@ public interface ReferenceName {
 	interface ChannelInitializer {
 		String CHANNEL_HANDLER_FACTORY = "channelHandlerFactory.target";
 	}
+	
+	interface NettyServer {
+		String CHANNEL_HANDLER = "channelHandler.target";
+	}
 }

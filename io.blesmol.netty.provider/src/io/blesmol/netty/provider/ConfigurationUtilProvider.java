@@ -53,7 +53,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		Configuration config = admin.createFactoryConfiguration(io.blesmol.netty.api.Configuration.NETTY_SERVER_PID,
 				"?");
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.APP_NAME, appName);
+		props.put(Property.NettyServer.APP_NAME, appName);
+		props.put(ReferenceName.NettyServer.CHANNEL_HANDLER, String.format("(%s=%s)", Property.NettyServer.APP_NAME, appName));
 		props.put(Property.NettyServer.INET_HOST, hostname);
 		props.put(Property.NettyServer.INET_PORT, port);
 		config.update(props);
@@ -66,8 +67,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		Configuration config = admin
 				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, "?");
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.APP_NAME, appName);
-		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLER_FACTORY, String.format("(%s=%s)", Property.APP_NAME, appName));
+		props.put(Property.ChannelInitializer.APP_NAME, appName);
+		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLER_FACTORY, String.format("(%s=%s)", Property.ChannelInitializer.APP_NAME, appName));
 		config.update(props);
 		configurations.add(config);
 
@@ -82,7 +83,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(Property.OsgiChannelHandler.APP_NAME, appName);
 		// bind the app name to the target reference
 		props.put(ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER,
-				String.format("(%s=%s)", Property.APP_NAME, appName));
+				String.format("(%s=%s)", Property.ChannelHandler.APP_NAME, appName));
 		// Add empty handler list
 		props.put(Property.OsgiChannelHandler.HANDLERS, handlers.toArray(new String[0]));
 		config.update(props);
@@ -99,7 +100,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	@Override
 	public void deleteNettyServerConfig(String appName) throws Exception {
 		Configuration[] configs = admin.listConfigurations(String.format("(&(service.factoryPid=%s)(%s=%s))",
-				io.blesmol.netty.api.Configuration.NETTY_SERVER_PID, Property.APP_NAME, appName));
+				io.blesmol.netty.api.Configuration.NETTY_SERVER_PID, Property.NettyServer.APP_NAME, appName));
 		for (Configuration config : configs) {
 			configurations.remove(config);
 			config.delete();
