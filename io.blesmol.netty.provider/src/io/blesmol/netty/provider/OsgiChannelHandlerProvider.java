@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -48,9 +47,10 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	// after activate method, possibly on a different thread
 	private volatile Configuration.OsgiChannelHandler config;
 
-	// Concurrency
-	private final ConcurrentMap<String, ChannelHandler> referencedHandlers = new ConcurrentHashMap<>();
-	private final ConcurrentMap<String, Deferred<ChannelHandler>> deferrers = new ConcurrentHashMap<>();
+	// Concurrency-safe
+	private final Map<String, Object> properties = new ConcurrentHashMap<>();
+	private final Map<String, ChannelHandler> referencedHandlers = new ConcurrentHashMap<>();
+	private final Map<String, Deferred<ChannelHandler>> deferrers = new ConcurrentHashMap<>();
 
 	// Guards
 	private final AtomicBoolean deferrersReady = new AtomicBoolean(false);
@@ -58,15 +58,16 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	//
 	// OSGI FIELD AND METHOD REFERENCES
 	//
-//	@Reference
-//	ExecutorService executor;
 
 	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE, name = "channelHandler")
 	void setChannelHandler(ChannelHandler handler, Map<String, Object> props) {
+
 		try {
 			String handlerName = (String) props.get(Property.ChannelHandler.HANDLE_NAME);
 			referencedHandlers.put(handlerName, handler);
 
+			// TODO log
+			System.out.println(String.format("Added '%s' handler with properties:\n%s", handlerName, props));
 			// Only modify existing deferrers after the activate method says so
 			// TODO: Consider turning into a promise which adds the services after the
 			// promise is fulfilled.
@@ -92,7 +93,11 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 	void unsetChannelHandler(ChannelHandler handler, Map<String, Object> props) {
 		try {
-			referencedHandlers.remove((String) props.get(Property.ChannelHandler.HANDLE_NAME), handler);
+			String handlerName = (String) props.get(Property.ChannelHandler.HANDLE_NAME);
+			referencedHandlers.remove(handlerName, handler);
+			// TODO: log
+			System.out.println(String.format("Removed '%s' handler with properties:\n%s", handlerName, props));
+
 		} catch (NullPointerException e) {
 			// TODO: log
 			String errMessage = "Error: unset handler '%s' does not have a string property named '%s', ignoring. Is the '%s' target set correctly?";
@@ -109,8 +114,9 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	 * Create maps of deferrers and promises based on configured handlers
 	 */
 	@Activate
-	void activate(Configuration.OsgiChannelHandler config) {
+	void activate(Configuration.OsgiChannelHandler config, Map<String, Object> props) {
 
+		this.properties.putAll(props);
 		this.config = config;
 
 		// Populate maps containing the defers.
@@ -134,6 +140,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		// previously added deferred handler promises.
 		activatedHandlers = Promises
 				.all(deferrers.values().stream().map(d -> d.getPromise()).collect(Collectors.toList()));
+		// TODO: log
+		System.out.println("Activated " + this);
 
 	}
 
@@ -158,7 +166,12 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	 * 
 	 */
 	@Modified
-	void modified(Configuration.OsgiChannelHandler config, Map<String, ?> properties) {
+	void modified(Configuration.OsgiChannelHandler config, Map<String, ?> props) {
+
+		// No race condition since OSGi calls the modified method sequentially
+		// if called multiple times.
+		this.properties.clear();
+		this.properties.putAll(props);
 
 		String[] previousHandlers = this.config.handlers();
 		String[] modifiedHandlers = config.handlers();
@@ -171,6 +184,9 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 				modifyHandlers(previousHandlers, modifiedHandlers);
 			}
 		});
+		
+		// TODO: log
+		System.out.println("Modified " + this);
 
 	}
 
@@ -202,6 +218,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 					// Remove those handlers from the pipeline which need removal
 					toRemove.forEach(h -> {
+						// TODO: log
+						System.out.println(String.format("Removed handler via modification: %s", h));
 						ctx.pipeline().remove(h);
 					});
 
@@ -209,15 +227,23 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 					// maintaining order.
 					IntStream.range(0, modifiedHandlers.length).filter(i -> toAdd.contains(modifiedHandlers[i]))
 							.forEach(i -> {
+								final String handlerName = modifiedHandlers[i];
+								final ChannelHandler handler = referencedHandlers.get(handlerName);
 								// If this is the first handler, add as first. No name needed
 								if (i == 0) {
-									ctx.pipeline().addFirst(referencedHandlers.get(modifiedHandlers[i]));
+									ctx.pipeline().addFirst(handler);
+									// TODO: log
+									System.out.println(
+											String.format("Added handler '%s' first via modification", handlerName));
 								}
 								// Otherwise, use the previous handler, either just added or previously added,
 								// as a reference and add after it.
 								else {
-									ctx.pipeline().addAfter(modifiedHandlers[i - 1], modifiedHandlers[i],
-											referencedHandlers.get(modifiedHandlers[i]));
+									String priorHandlerName = modifiedHandlers[i - 1];
+									ctx.pipeline().addAfter(priorHandlerName, handlerName, handler);
+									// TODO: log
+									System.out.println(String.format("Added handler '%s' after '%s' via modification",
+											handlerName, priorHandlerName));
 								}
 							});
 				} catch (InvocationTargetException | InterruptedException e) {
@@ -234,6 +260,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		// TODO: do anything?
 		// Called when configuration is removed, bundle is going away, channel is closed
 		// (via channel init)
+		// TODO: log
+		System.out.println("Deactivating " + this);
 	}
 
 	//
@@ -263,7 +291,11 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 			try {
 				activatedHandlers.getValue().stream()
 						//
-						.forEach(h -> ctx.pipeline().addLast(h));
+						.forEach(h -> {
+							ctx.pipeline().addLast(h);
+							// TODO: log
+							System.out.println("Adding initial handler to pipeline: " + h);
+						});
 			} catch (InvocationTargetException | InterruptedException e1) {
 				// TODO log, what else?
 				e1.printStackTrace();
@@ -284,4 +316,10 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		cause.printStackTrace();
 		ctx.close();
 	}
+
+	@Override
+	public String toString() {
+		return "OsgiChannelHandlerProvider [config=" + config + ", properties=" + properties + "]";
+	}
+
 }
