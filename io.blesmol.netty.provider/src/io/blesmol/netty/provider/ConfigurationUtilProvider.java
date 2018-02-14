@@ -61,6 +61,19 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
+	public void createChannelInitializerConfig(String appName) throws Exception {
+
+		Configuration config = admin
+				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, "?");
+		final Hashtable<String, Object> props = new Hashtable<>();
+		props.put(Property.APP_NAME, appName);
+		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLER_FACTORY, String.format("(%s=%s)", Property.APP_NAME, appName));
+		config.update(props);
+		configurations.add(config);
+
+	}
+
+	@Override
 	public void createOsgiChannelHandlerConfig(String appName, List<String> handlers) throws Exception {
 
 		Configuration config = admin
@@ -68,24 +81,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(Property.OsgiChannelHandler.APP_NAME, appName);
 		// bind the app name to the target reference
-		props.put(ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER + ".target",
+		props.put(ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER,
 				String.format("(%s=%s)", Property.APP_NAME, appName));
 		// Add empty handler list
 		props.put(Property.OsgiChannelHandler.HANDLERS, handlers.toArray(new String[0]));
 		config.update(props);
 		configurations.add(config);
-	}
-
-	@Override
-	public void createChannelInitializerConfig(String appName) throws Exception {
-
-		Configuration config = admin
-				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, "?");
-		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.APP_NAME, appName);
-		config.update(props);
-		configurations.add(config);
-
 	}
 
 	@Override

@@ -8,8 +8,10 @@ package io.blesmol.netty.api;
 public interface ReferenceName {
 
 	interface OsgiChannelHandler {
-
-		String CHANNEL_HANDLER = "channelHandler";		
+		String CHANNEL_HANDLER = "channelHandler.target";		
 	}
 
+	interface ChannelInitializer {
+		String CHANNEL_HANDLER_FACTORY = "channelHandlerFactory.target";
+	}
 }
