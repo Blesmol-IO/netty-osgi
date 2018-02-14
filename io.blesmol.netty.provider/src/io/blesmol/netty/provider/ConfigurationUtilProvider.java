@@ -54,7 +54,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				"?");
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(Property.NettyServer.APP_NAME, appName);
-		props.put(ReferenceName.NettyServer.CHANNEL_HANDLER, String.format("(%s=%s)", Property.NettyServer.APP_NAME, appName));
+		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER, String.format("(%s=%s)", Property.NettyServer.APP_NAME, appName));
 		props.put(Property.NettyServer.INET_HOST, hostname);
 		props.put(Property.NettyServer.INET_PORT, port);
 		config.update(props);
