@@ -186,7 +186,6 @@ public class RoundtripClientServerTest {
 		Hashtable<String, Object> props = new Hashtable<>();
 		props.put(Property.APP_NAME, appName);
 		props.put(Property.ChannelHandler.HANDLE_NAME, TestServerHandler.class.getName());
-		props.put(Property.ChannelHandler.FIRST, true);
 		TestServerHandler service = new TestServerHandler();
 		context.registerService(ChannelHandler.class, service, props);
 

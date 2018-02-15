@@ -129,15 +129,6 @@ public class OsgiChannelHandlerProviderStressTest {
 		props.put(Property.APP_NAME, appName);
 		props.put(Property.ChannelHandler.HANDLE_NAME, service.getClass().getName() + count);
 
-		// currently stress test either first or last
-		String firstLast;
-		if ((count % 2) == 0) {
-			firstLast = Property.ChannelHandler.FIRST;
-		} else {
-			firstLast = Property.ChannelHandler.LAST;
-		}
-		props.put(firstLast, true);
-
 		queue.offer(context.registerService(ChannelHandler.class, service, props));
 		latch.countDown();
 	}
