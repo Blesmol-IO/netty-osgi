@@ -3,6 +3,7 @@ package io.blesmol.netty.provider;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -21,6 +22,8 @@ import org.osgi.framework.Constants;
 import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
+import org.osgi.service.cm.Configuration;
+import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
@@ -34,32 +37,45 @@ import io.netty.channel.embedded.EmbeddedChannel;
 public class OsgiChannelHandlerProviderStressTest {
 
 	public static class TestChannelHandler implements ChannelHandler {
-		@Override public void handlerAdded(ChannelHandlerContext ctx) throws Exception {}
-		@Override public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {}
-		@Override public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {}
+		@Override
+		public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+		}
+
+		@Override
+		public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+		}
+
+		@Override
+		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+		}
 	}
 
-	ConfigurationUtil configUtil;
+	ConfigurationAdmin admin;
+	ConfigurationUtil util;
+	Configuration dynamicHandlerConfig;
 
 	private final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class)
 			.getBundleContext();
 	private final ConcurrentLinkedQueue<ServiceRegistration<ChannelHandler>> queue = new ConcurrentLinkedQueue<>();
+
 	private OsgiChannelHandler dynamicHandler;
 	final String appName = OsgiChannelHandlerProviderStressTest.class.getName();
-
+	final String hostname = "localhost";
+	final int port = 0;
+	final String[] factoryPids = new String[0];
+	final String channelId = appName + "1234567";
+	// FIXME: probably shouldn't be empty :)
+	final String[] handlerNames = new String[0];
+	
 	// TODO: don't leaks service trackers
 	<T> T getService(Class<T> clazz, long timeout) throws Exception {
 		return getService(clazz, timeout, "");
 	}
 
-	<T> T getService(Class<T> clazz, long timeout, String appName) throws Exception {
-		ServiceTracker<T,T> st;
-		if (appName != null && !"".equals(appName)) {
-			Filter filter = context.createFilter(
-				String.format("(&(%s=%s)(appName=%s))", Constants.OBJECTCLASS, clazz.getName(), appName)
-			);
-			st = new ServiceTracker<>(context, filter, null);
-			
+	<T> T getService(Class<T> clazz, long timeout, String filter) throws Exception {
+		ServiceTracker<T, T> st;
+		if (filter != null && !"".equals(filter)) {
+			st = new ServiceTracker<>(context, context.createFilter(filter), null);
 		} else {
 			st = new ServiceTracker<>(context, clazz, null);
 		}
@@ -67,20 +83,33 @@ public class OsgiChannelHandlerProviderStressTest {
 		return st.waitForService(timeout);
 	}
 
-
 	@Before
 	public void before() throws Exception {
 
-		configUtil = getService(ConfigurationUtil.class, 700);
+		admin = getService(ConfigurationAdmin.class, 250);
+		util =  getService(ConfigurationUtil.class, 250);
 
-		configUtil.createOsgiChannelHandlerConfig(appName, new ArrayList<>());
+		dynamicHandlerConfig = admin
+				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, "?");
 
-		dynamicHandler = getService(OsgiChannelHandler.class, 1000, appName);
+		// String.format("(&(%s=%s)(appName=%s))", Constants.OBJECTCLASS,
+		// clazz.getName(), filter)
+		
+		// Update the config
+		final Dictionary<String, Object> props = util.toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids, handlerNames);
+		dynamicHandlerConfig.update(props);
+
+		String filter = String.format("(&(%s=%s)(%s=%s))",
+				//
+				Constants.OBJECTCLASS, OsgiChannelHandler.class,
+				Property.OsgiChannelHandler.CHANNEL_ID, channelId);
+
+		dynamicHandler = getService(OsgiChannelHandler.class, 1000, filter);
 	}
 
 	@After
 	public void after() throws Exception {
-		configUtil.deleteOsgiChannelHandlerConfig(appName);
+		dynamicHandlerConfig.delete();
 	}
 
 	@Test
@@ -92,11 +121,12 @@ public class OsgiChannelHandlerProviderStressTest {
 		// Add handlers concurrently
 		final ExecutorService registerExecutor = Executors.newFixedThreadPool(threadPoolSize);
 		final CountDownLatch registerLatch = new CountDownLatch(count);
-		for (long i=count; i>0; i--) {
+		for (long i = count; i > 0; i--) {
 			final long current = i;
 			registerExecutor.execute(new Runnable() {
 				public void run() {
-					registerChannelHandler(registerLatch, current);
+					// FIXME
+//					registerChannelHandler(registerLatch, current);
 				}
 			});
 		}
@@ -109,37 +139,37 @@ public class OsgiChannelHandlerProviderStressTest {
 		// Start a thread that simulates removing handlers
 		final ExecutorService unregisterExecutor = Executors.newFixedThreadPool(threadPoolSize);
 		final CountDownLatch unregisterLatch = new CountDownLatch(count);
-		IntStream.range(0, threadPoolSize)
-			.forEach(i -> {
-				unregisterExecutor.execute(new Runnable() {
-					public void run() {
-						unregisterChannelHandler(unregisterLatch);
-					}
-				});
+		IntStream.range(0, threadPoolSize).forEach(i -> {
+			unregisterExecutor.execute(new Runnable() {
+				public void run() {
+					// FIXME
+//					unregisterChannelHandler(unregisterLatch);
+				}
 			});
+		});
 
 		// Verify
 		assertTrue(registerLatch.await(3, TimeUnit.SECONDS));
 		assertTrue(unregisterLatch.await(3, TimeUnit.SECONDS));
 	}
 
-	private void registerChannelHandler(CountDownLatch latch, long count) {
-		TestChannelHandler service = new TestChannelHandler();
-		Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.APP_NAME, appName);
-		props.put(Property.ChannelHandler.HANDLE_NAME, service.getClass().getName() + count);
+//	private void registerChannelHandler(CountDownLatch latch, long count) {
+//		final TestChannelHandler service = new TestChannelHandler();
+//		final Hashtable<String, Object> props = new Hashtable<>();
+//		props.put(Property.APP_NAME, service.getClass().getName() + count);
+//		props.put(Property.ChannelHandler.CHANNEL_ID, channelId);
+//
+//		queue.offer(context.registerService(ChannelHandler.class, service, props));
+//		latch.countDown();
+//	}
 
-		queue.offer(context.registerService(ChannelHandler.class, service, props));
-		latch.countDown();
-	}
-
-	private void unregisterChannelHandler(CountDownLatch latch) {
-		while (!queue.isEmpty()) {
-			ServiceRegistration<ChannelHandler> reg = queue.poll();
-			if (reg != null) {
-				reg.unregister();
-				latch.countDown();
-			}
-		}
-	}
+//	private void unregisterChannelHandler(CountDownLatch latch) {
+//		while (!queue.isEmpty()) {
+//			ServiceRegistration<ChannelHandler> reg = queue.poll();
+//			if (reg != null) {
+//				reg.unregister();
+//				latch.countDown();
+//			}
+//		}
+//	}
 }

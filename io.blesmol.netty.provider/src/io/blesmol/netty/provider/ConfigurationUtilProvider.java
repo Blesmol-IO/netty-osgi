@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.osgi.framework.Constants;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.component.annotations.Activate;
@@ -19,6 +21,8 @@ import io.blesmol.netty.api.ReferenceName;
 @Component(immediate = true)
 public class ConfigurationUtilProvider implements ConfigurationUtil {
 
+	private final AtomicBoolean deactivated = new AtomicBoolean(false);
+	
 	@Reference
 	ConfigurationAdmin admin;
 
@@ -28,6 +32,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Deactivate
 	void deactivate() {
+		if (deactivated.getAndSet(true) == true) {
+			return;
+		}
+
+		// TODO trace log
+		System.out.println("Deactivating configuration utility provider");
 		configurations.forEach(c -> {
 			try {
 				c.delete();
@@ -41,92 +51,49 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	List<Configuration> configurations = new CopyOnWriteArrayList<>();
 
 	@Override
-	public void createApplication(String appName, String hostname, Integer port, List<String> handlers) throws Exception {
-        createNettyServerConfig(appName, hostname, port);
-        createChannelInitializerConfig(appName);
-        createOsgiChannelHandlerConfig(appName, handlers);
-	}
-
-	@Override
-	public void createNettyServerConfig(String appName, String hostname, Integer port) throws Exception {
+	public String createNettyServerConfig(String appName, String hostname, Integer port, List<String> handlers, List<String> handlerNames) throws Exception {
 
 		Configuration config = admin.createFactoryConfiguration(io.blesmol.netty.api.Configuration.NETTY_SERVER_PID,
 				"?");
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(Property.NettyServer.APP_NAME, appName);
-		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER, String.format("(%s=%s)", Property.NettyServer.APP_NAME, appName));
+
+		final String[] propHandlers = handlers.toArray(new String[0]);
+		// FIXME: ldap injection
+		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
+				Property.ChannelInitializer.APP_NAME, appName,
+				Property.ChannelInitializer.INET_HOST, hostname,
+				Property.ChannelInitializer.INET_PORT, port,
+				Property.ChannelInitializer.FACTORY_PIDS, propHandlers);
+
+		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER, channelInitializerTarget);
 		props.put(Property.NettyServer.INET_HOST, hostname);
 		props.put(Property.NettyServer.INET_PORT, port);
+		props.put(Property.NettyServer.FACTORY_PIDS, propHandlers);
+		props.put(Property.NettyServer.HANDLER_NAMES, handlerNames.toArray(new String[0]));
 		config.update(props);
 		configurations.add(config);
+		
+		return config.getPid();
 	}
 
 	@Override
-	public void createChannelInitializerConfig(String appName) throws Exception {
+	public void deleteNettyServerConfig(String pid) throws Exception {
 
-		Configuration config = admin
-				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, "?");
-		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.ChannelInitializer.APP_NAME, appName);
-		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLER_FACTORY, String.format("(%s=%s)", Property.ChannelInitializer.APP_NAME, appName));
-		config.update(props);
-		configurations.add(config);
+		final String filter = String.format("(%s=%s)",
+				Constants.SERVICE_PID, pid);
 
-	}
-
-	@Override
-	public void createOsgiChannelHandlerConfig(String appName, List<String> handlers) throws Exception {
-
-		Configuration config = admin
-				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, "?");
-		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.OsgiChannelHandler.APP_NAME, appName);
-		// bind the app name to the target reference
-		props.put(ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER,
-				String.format("(%s=%s)", Property.ChannelHandler.APP_NAME, appName));
-		// Add empty handler list
-		props.put(Property.OsgiChannelHandler.HANDLERS, handlers.toArray(new String[0]));
-		config.update(props);
-		configurations.add(config);
-	}
-
-	@Override
-	public void deleteApplication(String appName) throws Exception {
-        deleteOsgiChannelHandlerConfig(appName);
-        deleteChannelInitializerConfig(appName);
-        deleteNettyServerConfig(appName);		
-	}
-
-	@Override
-	public void deleteNettyServerConfig(String appName) throws Exception {
-		Configuration[] configs = admin.listConfigurations(String.format("(&(service.factoryPid=%s)(%s=%s))",
-				io.blesmol.netty.api.Configuration.NETTY_SERVER_PID, Property.NettyServer.APP_NAME, appName));
+		Configuration[] configs = admin.listConfigurations(filter);
+		if (configs == null) {
+			// TODO debug/trace log
+			System.err.println("No configurations to delete for filter " + filter);
+			return;
+		}
 		for (Configuration config : configs) {
 			configurations.remove(config);
 			config.delete();
 		}
 	}
 
-	@Override
-	public void deleteOsgiChannelHandlerConfig(String appName) throws Exception {
-		Configuration[] configs = admin.listConfigurations(String.format("(&(service.factoryPid=%s)(%s=%s))",
-				io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, Property.APP_NAME, appName));
-		for (Configuration config : configs) {
-			configurations.remove(config);
-			config.delete();
-		}
-
-	}
-
-	@Override
-	public void deleteChannelInitializerConfig(String appName) throws Exception {
-		Configuration[] configs = admin.listConfigurations(String.format("(&(service.factoryPid=%s)(%s=%s))",
-				io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, Property.APP_NAME, appName));
-		for (Configuration config : configs) {
-			configurations.remove(config);
-			config.delete();
-		}
-
-	}
 
 }

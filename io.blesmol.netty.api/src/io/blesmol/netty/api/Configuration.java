@@ -7,45 +7,70 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 /**
  * <p>
- * Common component property types and configuration PIDs 
- * <p> 
+ * Common component property types and configuration PIDs
+ * <p>
  *
  */
 public interface Configuration {
 
 	String NETTY_CLIENT_PID = "io.blesmol.netty.api.NettyClient";
+
 	@interface NettyClient {
 		String appName();
+
 		String destinationHost();
+
 		int destinationPort();
+
 		Class<? extends Channel> channel() default NioSocketChannel.class;
+
 		boolean optionAutoRead() default true;
 	}
-	
-	
+
 	String NETTY_SERVER_PID = "io.blesmol.netty.api.NettyServer";
+
 	@interface NettyServer {
 		String appName();
-		String inetHost() default "localhost";
-		int inetPort() default 0;
-		Class<? extends ServerChannel> channel() default NioServerSocketChannel.class;	
-	}
-	
-	String OSGI_CHANNEL_HANDLER_PID = "io.blesmol.netty.api.OsgiChannelHandler";
-	@interface OsgiChannelHandler {
-		String appName();
-		String[] handlers();
+
+		String inetHost();
+
+		int inetPort();
+
+		String[] factoryPids();
+		
+		String[] handlerNames();
+
+		Class<? extends ServerChannel> channel() default NioServerSocketChannel.class;
 	}
 
-	// Note: no common PID is used for channel handlers since each
-	// should be uniquely configured
-	@interface ChannelHandler {
+	String OSGI_CHANNEL_HANDLER_PID = "io.blesmol.netty.api.OsgiChannelHandler";
+
+	@interface OsgiChannelHandler {
 		String appName();
-		String handleName();
+
+		String channelId();
+
+		String inetHost();
+
+		int inetPort();
+
+		String[] factoryPids();
+		
+		String[] handlerNames();
+
 	}
 
 	String CHANNEL_INITIALIZER_PID = "io.netty.channel.ChannelInitializer";
+
 	@interface ChannelInitializer {
-		String appName();		
+		String appName();
+
+		String inetHost();
+
+		int inetPort();
+
+		String[] factoryPids();
+		
+		String[] handlerNames();
 	}
 }

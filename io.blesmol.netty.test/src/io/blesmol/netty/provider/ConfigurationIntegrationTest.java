@@ -4,6 +4,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -26,7 +27,8 @@ import io.netty.channel.ChannelFutureListener;
 @RunWith(MockitoJUnitRunner.class)
 public class ConfigurationIntegrationTest {
 
-	private final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class).getBundleContext();
+	private final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class)
+			.getBundleContext();
 
 	ConfigurationUtil configUtil;
 
@@ -36,13 +38,12 @@ public class ConfigurationIntegrationTest {
 	}
 
 	<T> T getService(Class<T> clazz, long timeout, String appName) throws Exception {
-		ServiceTracker<T,T> st;
+		ServiceTracker<T, T> st;
 		if (appName != null && !"".equals(appName)) {
 			Filter filter = context.createFilter(
-					String.format("(&(%s=%s)(appName=%s))", Constants.OBJECTCLASS, clazz.getName(), appName)
-			);
+					String.format("(&(%s=%s)(appName=%s))", Constants.OBJECTCLASS, clazz.getName(), appName));
 			st = new ServiceTracker<>(context, filter, null);
-			
+
 		} else {
 			st = new ServiceTracker<>(context, clazz, null);
 		}
@@ -64,33 +65,32 @@ public class ConfigurationIntegrationTest {
 	@Test
 	public void shouldCreateConfigAndGetService() throws Exception {
 		final String appName = "shouldCreateConfigAndGetService";
+		final String hostname = "localhost";
+		final int port = 0; // ephemeral
+		final List<String> factoryPids = new ArrayList<>();
+		final List<String> handlerNames = new ArrayList<>();
 
 		// Create the server config, channel initializer, and dynamic handler
-        configUtil.createNettyServerConfig(appName, "localhost", 5308);
-        configUtil.createChannelInitializerConfig(appName);
-        configUtil.createOsgiChannelHandlerConfig(appName, new ArrayList<>());
+		String pid = configUtil.createNettyServerConfig(appName, hostname, port, factoryPids, handlerNames);
 
-        // Verify service creation and pipeline being established
-        NettyServer server = getService(NettyServer.class, 3000, appName);
-        assertNotNull(server);
-        assertNotNull(server.future());
+		// Verify service creation and pipeline being established
+		NettyServer server = getService(NettyServer.class, 3000, appName);
+		assertNotNull(server);
+		assertNotNull(server.promise());
 
-        // Setup latch
-        final CountDownLatch latch = new CountDownLatch(1);
-        server.future().channel().closeFuture().addListener(new ChannelFutureListener() {
+		// Setup latch
+		final CountDownLatch latch = new CountDownLatch(1);
+		server.promise().getValue().channel().closeFuture().addListener(new ChannelFutureListener() {
 			@Override
 			public void operationComplete(ChannelFuture future) throws Exception {
 				latch.countDown();
 			}
-        });
+		});
 
-        // Delete the config and wait so the service manager factory can
-        // unregister the service
-        configUtil.deleteOsgiChannelHandlerConfig(appName);
-        configUtil.deleteChannelInitializerConfig(appName);
-        configUtil.deleteNettyServerConfig(appName);
-        assertTrue(latch.await(2, TimeUnit.SECONDS));
+		// Delete the config and wait so the service manager factory can
+		// unregister the service
+		configUtil.deleteNettyServerConfig(pid);
+		assertTrue(latch.await(2, TimeUnit.SECONDS));
 	}
 
-	
 }

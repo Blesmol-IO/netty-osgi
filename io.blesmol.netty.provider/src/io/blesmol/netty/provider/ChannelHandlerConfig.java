@@ -30,7 +30,7 @@ public class ChannelHandlerConfig {
 	public static ChannelHandlerConfig fromMap(Map<String, Object> map) {
 
 		ChannelHandlerConfig result = new ChannelHandlerConfig();
-		result.handleName = (String) map.getOrDefault(Property.ChannelHandler.HANDLE_NAME, EMPTY);
+		result.handleName = (String) map.getOrDefault(Property.ChannelHandler.CHANNEL_ID, EMPTY);
 		result.appName = (String) map.getOrDefault(Property.APP_NAME, EMPTY);
 		return result;
 	}

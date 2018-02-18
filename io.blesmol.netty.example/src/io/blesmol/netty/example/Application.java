@@ -12,14 +12,16 @@ public class Application {
 	@Reference
 	ConfigurationUtil configUtil;
 
+	String configPid;
+	
 	@Activate
 	void activate() throws Exception {
-		configUtil.createApplication(Application.class.getName(), "localhost", 8484, new ArrayList<>());
+		configPid = configUtil.createNettyServerConfig(Application.class.getName(), "localhost", 8484, new ArrayList<>(), new ArrayList<>());
 	}
 
 	@Deactivate
 	void deactivate() throws Exception {
-		configUtil.deleteApplication(Application.class.getName());
+		configUtil.deleteNettyServerConfig(configPid);
 	}
 
 }
