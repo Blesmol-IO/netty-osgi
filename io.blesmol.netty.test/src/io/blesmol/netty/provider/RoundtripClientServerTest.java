@@ -4,11 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -26,19 +23,16 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
-import org.osgi.service.cm.ConfigurationAdmin;
-import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyServer;
-import io.blesmol.netty.api.Property;
+import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -82,29 +76,6 @@ public class RoundtripClientServerTest {
         server = null;
 	}
 
-	class TestServerHandlerFactory implements ManagedServiceFactory {
-
-		ServiceRegistration<ChannelHandler> sr;
-
-		@Override
-		public String getName() {
-			return TestServerHandlerFactory.class.getName();
-		}
-
-		@Override
-		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
-			System.out.println("test factory creating service via update with properties " + properties);
-			sr = context.registerService(ChannelHandler.class, new TestServerHandler(), properties);	
-		}
-
-		@Override
-		public void deleted(String pid) {
-			sr.unregister();
-			
-		}
-		
-	}
-	
 	static class TestServerHandler extends ChannelInboundHandlerAdapter {
 
 		@Override
@@ -141,12 +112,14 @@ public class RoundtripClientServerTest {
 			IntStream.range(0, message.capacity()).forEach(i -> message.writeByte(i));
 			expected = message.toString(StandardCharsets.UTF_8);
 			ctx.writeAndFlush(message);
+			System.out.println("c->s wrote data");
 		}
 
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
 			ByteBuf buf = (ByteBuf) msg;
 			actual = buf.toString(StandardCharsets.UTF_8);
+			System.out.println("c<-s read data");
 		}
 		
 		@Override
@@ -208,9 +181,9 @@ public class RoundtripClientServerTest {
 
 		// Register server handler factory, which will be called
 		Hashtable<String, Object> props = new Hashtable<>();
-		TestServerHandlerFactory factory = new TestServerHandlerFactory();
+		TestServerHandlerFactory factory = new TestServerHandlerFactory(context, TestServerHandler.class);
 		props.put(Constants.SERVICE_PID, factoryPid);
-		context.registerService(ManagedServiceFactory.class.getName(), factory, props);
+		ServiceRegistration<ManagedServiceFactory> sr = context.registerService(ManagedServiceFactory.class, factory, props);
 
 		// Run client and register latch
 		final CountDownLatch latch = new CountDownLatch(1);
@@ -240,6 +213,8 @@ public class RoundtripClientServerTest {
 		assertTrue(!client.testHandler.actual.isEmpty());
 		assertTrue(!client.testHandler.expected.isEmpty());
 		assertEquals(client.testHandler.actual, client.testHandler.expected);
+		
+		sr.unregister();
 	}
 
 }

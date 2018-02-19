@@ -130,7 +130,9 @@ public class NettyServerProvider implements NettyServer {
 						// TODO: consider making configurable
 						.option(ChannelOption.SO_BACKLOG, 128)
 						// TODO: consider making configurable
-						.childOption(ChannelOption.SO_KEEPALIVE, true);
+						.childOption(ChannelOption.SO_KEEPALIVE, true)
+						// disable reading right away until the dynamic handler says it's ok
+						.childOption(ChannelOption.AUTO_READ, false);
 
 				// Resolve the deferred channel future
 				channelFutureDeferred.resolve(server.bind(config.inetHost(), config.inetPort()));

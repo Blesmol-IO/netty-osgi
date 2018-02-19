@@ -1,7 +1,17 @@
 package io.blesmol.netty.provider;
 
+import java.util.Dictionary;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceRegistration;
+import org.osgi.service.cm.ConfigurationException;
+import org.osgi.service.cm.ManagedServiceFactory;
 import org.osgi.util.tracker.ServiceTracker;
+
+import io.netty.channel.ChannelHandler;
 
 public class TestUtils {
 
@@ -22,4 +32,54 @@ public class TestUtils {
 		return st.waitForService(timeout);
 	}
 
+	public static class TestServerHandlerFactory implements ManagedServiceFactory {
+
+		private final BundleContext context;
+		private final Map<String, ServiceRegistration<ChannelHandler>> registrations = new ConcurrentHashMap<>();
+		private final Class<? extends ChannelHandler> channelHandlerClass;
+		private final CountDownLatch updatedLatch;
+		private final CountDownLatch deletedLatch;
+
+		public TestServerHandlerFactory(BundleContext context, Class<? extends ChannelHandler> channelHandlerClass) {
+			this(context, channelHandlerClass, null, null);
+		}
+		
+		public TestServerHandlerFactory(BundleContext context, Class<? extends ChannelHandler> channelHandlerClass,
+				CountDownLatch updatedLatch, CountDownLatch deletedLatch) {
+			super();
+			this.context = context;
+			this.channelHandlerClass = channelHandlerClass;
+			this.updatedLatch = updatedLatch;
+			this.deletedLatch = deletedLatch;
+		}
+
+		@Override
+		public String getName() {
+			return TestServerHandlerFactory.class.getName();
+		}
+
+		@Override
+		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
+			try {
+				registrations.put(pid, context.registerService(ChannelHandler.class, channelHandlerClass.newInstance(), properties));
+				if (updatedLatch != null) {
+					updatedLatch.countDown();
+				}
+			} catch (InstantiationException | IllegalAccessException e) {
+				throw new ConfigurationException(null, "Could not instantiate class " + channelHandlerClass, e);
+			}
+
+		}
+
+		@Override
+		public void deleted(String pid) {
+			System.out.println("Deleting pid " + pid);
+			registrations.get(pid).unregister();
+			if (deletedLatch != null) {
+				deletedLatch.countDown();
+			}
+		}
+		
+	}
+	
 }

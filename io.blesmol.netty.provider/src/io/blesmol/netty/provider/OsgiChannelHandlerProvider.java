@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -38,6 +39,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 @Component(configurationPid = Configuration.OSGI_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
 public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter implements OsgiChannelHandler {
 
+	private final AtomicBoolean readyToRead = new AtomicBoolean(false);
+	
 	private final Deferred<ChannelHandlerContext> deferredContext = new Deferred<>();
 
 	// Needs volatile since it can be updated on modified method calls
@@ -123,10 +126,13 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		assert config.factoryPids().length == config.handlerNames().length;
 		this.config = config;
 
+		// Where the magic happens
+		//
+		// First create the managed service factory configurations
 		promises.add(createFactoryConfigurations(config.factoryPids())
-				//
-				.then((p) -> updateMaps(p, config.handlerNames(), config.channelId()))
-				// TODO: do something with the failure?
+				// Then update the configurations with required properties
+				.then((p) -> updateConfigsAndMaps(p, config.handlerNames(), config.channelId()))
+				// And finally add to the pipeline if not already added
 				.then((p) -> maybeAddToPipeline(p, deferredContext.getPromise())));
 
 		// TODO: log
@@ -177,7 +183,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	/*
 	 * 
 	 */
-	private Promise<List<ChannelHandler>> updateMaps(Promise<List<org.osgi.service.cm.Configuration>> promisedConfigs,
+	private Promise<List<ChannelHandler>> updateConfigsAndMaps(Promise<List<org.osgi.service.cm.Configuration>> promisedConfigs,
 			String[] handlerNames, String channelId) {
 
 		Deferred<List<ChannelHandler>> result = new Deferred<>();
@@ -244,6 +250,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 							final Deferred<Void> deferred = new Deferred<>();
 							try {
 								context.pipeline().addLast(h);
+								// TODO log
 								System.out.println("added to pipeline channel handler " + h);
 								deferred.resolve(null);
 							} catch (Exception e) {
@@ -253,6 +260,9 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 						}
 						promises.add(addedToPipeline.get(h));
 					});
+					// Now allow reading of channel
+					context.channel().config().setAutoRead(true);
+					// and resolve
 					result.resolveWith(Promises.all(promises));
 				} catch (InvocationTargetException | InterruptedException e) {
 					result.fail(e);
@@ -451,7 +461,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	@Override
 	public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
 	}
-
+	
 	/*
 	 * (non-Javadoc)
 	 * 
