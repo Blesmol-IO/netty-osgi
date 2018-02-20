@@ -80,16 +80,19 @@ public class RoundtripClientServerTest {
 
 		@Override
 		public void channelActive(ChannelHandlerContext ctx) throws Exception {
+			System.out.println("Roundtrip server handler activated");
 			super.channelActive(ctx);
 		}
 		
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
+			System.out.println("Roundtrip server handler read message, writing back");
 			ctx.write(msg);
 		}
 
 		@Override
 		public void channelReadComplete(ChannelHandlerContext ctx) {
+			System.out.println("Roundtrip server handler flushing");
 			ctx.flush();
 		}
 

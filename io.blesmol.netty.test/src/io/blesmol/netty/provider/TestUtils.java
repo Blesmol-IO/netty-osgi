@@ -15,13 +15,12 @@ import io.netty.channel.ChannelHandler;
 
 public class TestUtils {
 
-
-	// TODO: don't leaks service trackers
 	public static <T> T getService(BundleContext context, Class<T> clazz, long timeout) throws Exception {
 		return getService(context, clazz, timeout, "");
 	}
 
-	public static <T> T getService(BundleContext context, Class<T> clazz, long timeout, String filter) throws Exception {
+	public static <T> T getService(BundleContext context, Class<T> clazz, long timeout, String filter)
+			throws Exception {
 		ServiceTracker<T, T> st;
 		if (filter != null && !"".equals(filter)) {
 			st = new ServiceTracker<>(context, context.createFilter(filter), null);
@@ -43,7 +42,7 @@ public class TestUtils {
 		public TestServerHandlerFactory(BundleContext context, Class<? extends ChannelHandler> channelHandlerClass) {
 			this(context, channelHandlerClass, null, null);
 		}
-		
+
 		public TestServerHandlerFactory(BundleContext context, Class<? extends ChannelHandler> channelHandlerClass,
 				CountDownLatch updatedLatch, CountDownLatch deletedLatch) {
 			super();
@@ -61,7 +60,8 @@ public class TestUtils {
 		@Override
 		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
 			try {
-				registrations.put(pid, context.registerService(ChannelHandler.class, channelHandlerClass.newInstance(), properties));
+				registrations.put(pid,
+						context.registerService(ChannelHandler.class, channelHandlerClass.newInstance(), properties));
 				if (updatedLatch != null) {
 					updatedLatch.countDown();
 				}
@@ -73,13 +73,12 @@ public class TestUtils {
 
 		@Override
 		public void deleted(String pid) {
-			System.out.println("Deleting pid " + pid);
 			registrations.get(pid).unregister();
 			if (deletedLatch != null) {
 				deletedLatch.countDown();
 			}
 		}
-		
+
 	}
-	
+
 }
