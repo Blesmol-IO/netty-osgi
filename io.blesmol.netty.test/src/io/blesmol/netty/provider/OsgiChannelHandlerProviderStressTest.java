@@ -113,12 +113,12 @@ public class OsgiChannelHandlerProviderStressTest {
 		ServiceRegistration<ManagedServiceFactory> sr = context.registerService(ManagedServiceFactory.class, factory, props);
 
 		// Wait for a couple seconds until the dust settles
-		assertTrue(updatedLatch.await(4, TimeUnit.SECONDS));
+		assertTrue(updatedLatch.await(5, TimeUnit.SECONDS));
 
 		// Then unregister the factory, which should delete all the created handlers
 //		sr.unregister();	
 		dynamicHandlerConfig.delete();
-		assertTrue(deletedLatch.await(4, TimeUnit.SECONDS));
+		assertTrue(deletedLatch.await(10, TimeUnit.SECONDS));
 	}
 
 }

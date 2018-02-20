@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -48,17 +49,19 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 	// Needs volatile since it can be updated on modified method calls
 	// after activate method, possibly on a different thread.
-	private volatile Configuration.OsgiChannelHandler config;
+	private volatile Configuration.OsgiChannelHandler priorConfig;
 
 	// Deque of activated or modified promises
 	private final ConcurrentLinkedDeque<Promise<List<Void>>> promises = new ConcurrentLinkedDeque<>();
 
 	private final ExecutorService executor = Executors.newCachedThreadPool();
 
-	private final Map<Key, Deferred<ChannelHandler>> deferrers = new ConcurrentHashMap<>();
+	private final Map<Key, Deferred<ChannelHandler>> deferredHandlers = new ConcurrentHashMap<>();
 	private final Map<Key, Deferred<org.osgi.service.cm.Configuration>> configurations = new ConcurrentHashMap<>();
-	private final Map<ChannelHandler, Promise<Void>> addedToPipeline = new ConcurrentHashMap<>();
-	private final Map<Key, Deferred<Key>> deferredKeys = new ConcurrentHashMap<>();
+	private final Map<Key, Deferred<Void>> keyedPipeline = new ConcurrentHashMap<>();
+	private final Map<Key, ChannelHandler> keysToHandlers = new ConcurrentHashMap<>();
+//	@Deprecated
+//	private final Map<ChannelHandler, Deferred<Void>> addedToPipeline = new ConcurrentHashMap<>();
 
 	//
 	// OSGI FIELD AND METHOD REFERENCES
@@ -91,14 +94,17 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 		final Key key = new Key(handlerName, factoryPid);
 
-		if (!deferrers.containsKey(key)) {
+		if (!deferredHandlers.containsKey(key)) {
 			// TODO: log warning
 			System.err.println(String.format("Error: key '%s' does not exist in deferred handler map, ignoring", key));
 			return;
 		}
 
+		// Putting into the map happens-before resolving
+		keysToHandlers.put(key, handler);
+
 		// Resolve handler
-		deferrers.get(key).resolve(handler);
+		deferredHandlers.get(key).resolve(handler);
 
 	}
 
@@ -122,10 +128,11 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		final Key key = new Key(handlerName, factoryPid);
 
 		// Remove previously resolved handler
-		deferrers.remove(key);
+		deferredHandlers.remove(key);
 
 		// If this handler was added, remove
-		if (addedToPipeline.remove(handler) != null) {
+//		if (addedToPipeline.remove(handler) != null) {
+		if (keyedPipeline.remove(key) != null) {
 			promisedContext.then((p) -> removeFromPipeline(handler, promisedContext.getValue()));
 
 		}
@@ -140,17 +147,11 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	void activate(Configuration.OsgiChannelHandler config, Map<String, Object> props) {
 
 		System.out.println("Activated dynamic handler properties: " + props);
-		assert config.factoryPids().length == config.handlerNames().length;
-		this.config = config;
 
-		promises.add(
-				// First create the managed service factory configurations
-				maybeCreateFactoryConfigurations(toKeys(config.handlerNames(), config.factoryPids()))
-				// Then update the configurations with required properties
-				.then((p) -> maybeUpdateFactoryConfigurations(p.getValue(), config.handlerNames(), config.channelId()))
-				// And finally add to the pipeline if not already added
-				.then((p) -> maybeAddToPipeline(p.getValue(), promisedContext.getValue()),
-						(f) -> f.getFailure().printStackTrace()));
+		this.priorConfig = config;
+
+		final List<Key> keys = toKeys(config.handlerNames(), config.factoryPids());
+		addOrUpdateConfigurationsAndHandlers(keys);
 
 		// TODO: log
 		System.out.println("Activated " + this);
@@ -182,8 +183,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 		assert config.factoryPids().length == config.handlerNames().length;
 
-		Configuration.OsgiChannelHandler priorConfig = this.config;
-		this.config = config;
+		Configuration.OsgiChannelHandler priorConfig = this.priorConfig;
+		this.priorConfig = config;
 
 		LinkedHashMap<Key, Deferred<Key>> thesePromisedKeys = IntStream.range(0, config.factoryPids().length)
 				.mapToObj(it -> new Key(config.handlerNames()[it], config.factoryPids()[it]))
@@ -213,8 +214,21 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		// Get promise created via prior activate or modified method call
 		// and chain off of it
 		promises.remove().then((p) -> deleteFactoryConfigurations(toRemove));
+		// .then((p) -> addOrUpdateConfigurationsAndHandlers());
 
 		System.out.println("Modified " + this);
+	}
+
+	private void addOrUpdateConfigurationsAndHandlers(final List<Key> keys) {
+
+		promises.add(
+				// First create the managed service factory configurations
+				maybeCreateFactoryConfigurations(keys)
+						// Then update the configurations with required properties
+						.then((p) -> maybeUpdateFactoryConfigurations(p.getValue(), keys, priorConfig.channelId()))
+						// And finally add to the pipeline if not already added
+						.then((p) -> maybeAddToPipeline(p.getValue(), promisedContext.getValue(), keys),
+								(f) -> f.getFailure().printStackTrace()));
 	}
 
 	/*
@@ -276,22 +290,6 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		// TODO: log
 		System.out.println("Deactivated " + this);
 	}
-	//
-	// private Promise<List<Key>> createOrModifyConfigurations(List<Key> keys) {
-	// final Deferred<List<Key>> results = new Deferred<>();
-	//
-	// executor.execute(new Runnable() {
-	// @Override
-	// public void run() {
-	// results.resolveWith(Promises.all(Arrays.stream(factoryPids).map(p ->
-	// createFactoryConfiguration(p))
-	// .collect(Collectors.toList())));
-	// }
-	// });
-	//
-	// return results.getPromise();
-	// }
-	//
 
 	private List<Key> toKeys(String[] handlerNames, String[] factoryPids) {
 
@@ -311,16 +309,9 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 			@Override
 			public void run() {
 				final List<Promise<org.osgi.service.cm.Configuration>> promisedConfigs = new ArrayList<>();
-
 				keys.stream().forEachOrdered(it -> {
 
-					Deferred<Key> deferredKey = OsgiChannelHandlerProvider.this.deferredKeys.get(it);
-					
-//					if ()
-					
-					
-					Deferred<org.osgi.service.cm.Configuration> deferred = OsgiChannelHandlerProvider.this.configurations
-							.get(it);
+					Deferred<org.osgi.service.cm.Configuration> deferred = configurations.get(it);
 					if (deferred == null) {
 						deferred = new Deferred<>();
 						try {
@@ -350,8 +341,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	/*
 	 * 
 	 */
-	private Promise<List<ChannelHandler>> maybeUpdateFactoryConfigurations(List<org.osgi.service.cm.Configuration> configs,
-			String[] handlerNames, String channelId) {
+	private Promise<List<ChannelHandler>> maybeUpdateFactoryConfigurations(
+			List<org.osgi.service.cm.Configuration> configs, List<Key> keys, String channelId) {
 
 		Deferred<List<ChannelHandler>> result = new Deferred<>();
 
@@ -362,25 +353,31 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 				final List<Promise<ChannelHandler>> promises = new ArrayList<>(configs.size());
 				IntStream.range(0, configs.size()).forEachOrdered(i -> {
-					final Deferred<ChannelHandler> deferred = new Deferred<>();
-					final org.osgi.service.cm.Configuration c = configs.get(i);
-					final String handlerName = handlerNames[i];
-					final Key key = new Key(handlerName, c.getFactoryPid());
+
+					final Key key = keys.get(i);
+
+					Deferred<ChannelHandler> deferred = deferredHandlers.get(key);
+					if (deferred == null) {
+						deferred = new Deferred<>();
+						final org.osgi.service.cm.Configuration c = configs.get(i);
+						final String handlerName = key.handlerName;
+
+						// Putting in the concurrent maps needs to happen-before updating the
+						// configuration
+						deferredHandlers.put(key, deferred);
+
+						// Fail the channel handler defer if its expected configuration cannot be
+						// updated
+						try {
+							c.update(configUtil.toChannelHandlerProps(handlerName, channelId));
+						} catch (Exception e) {
+							e.printStackTrace();
+							deferred.fail(e);
+						}
+
+					}
 
 					promises.add(deferred.getPromise());
-
-					// Putting in the concurrent maps needs to happen-before updating the
-					// configuration
-					deferrers.put(key, deferred);
-
-					// Fail the channel handler defer if its expected configuration cannot be
-					// updated
-					try {
-						c.update(configUtil.toChannelHandlerProps(handlerName, channelId));
-					} catch (Exception e) {
-						e.printStackTrace();
-						deferred.fail(e);
-					}
 				});
 				System.out.println("updateConfigsAndMaps resolving promise");
 				result.resolveWith(Promises.all(promises));
@@ -391,7 +388,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 		return result.getPromise();
 	}
 
-	private Promise<List<Void>> maybeAddToPipeline(List<ChannelHandler> handlers, ChannelHandlerContext context) {
+	private Promise<List<Void>> maybeAddToPipeline(List<ChannelHandler> handlers, ChannelHandlerContext context,
+			List<Key> keys) {
 
 		Deferred<List<Void>> result = new Deferred<>();
 		executor.execute(new Runnable() {
@@ -400,26 +398,63 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 			public void run() {
 
 				final List<Promise<Void>> promises = new ArrayList<>();
-				handlers.stream().forEachOrdered(h -> {
 
-					// Ensure a handler is only added once, via a promise
-					if (!addedToPipeline.containsKey(h)) {
-						final Deferred<Void> deferred = new Deferred<>();
+				// NEEDS TO BE ORDERED
+				// The passed in keys are ordered correctly
+				// The list of handlers may not be ordered
+				keys.stream().forEachOrdered(it -> {
+					Deferred<Void> deferred = keyedPipeline.get(it);
+
+					// The handler has not been added yet
+					if (deferred == null) {
+						deferred = new Deferred<>();
+						final ChannelHandler handler = keysToHandlers.get(it);
+						final int idx = keys.indexOf(it);
+						final String handlerName = it.handlerName;
 						try {
-							context.pipeline().addLast(h);
-							// TODO log
-							System.out.println("added to pipeline channel handler " + h);
+							// If this is the first one, add first
+							if (idx == 0) {
+								context.pipeline().addFirst(handlerName, handler);
+								System.out.println(String.format("Added handler '%s' first", handlerName));
+							}
+							// Else, use the previously added (just now or before) handler as a guide
+							else {
+								String priorHandlerName = keys.get(idx - 1).handlerName;
+								context.pipeline().addAfter(priorHandlerName, handlerName, handler);
+								System.out.println(
+										String.format("Added handler '%s' after '%s'", priorHandlerName, handlerName));
+							}
 							deferred.resolve(null);
 						} catch (Exception e) {
 							e.printStackTrace();
 							deferred.fail(e);
 						}
-						addedToPipeline.put(h, deferred.getPromise());
-					} else {
-						System.out.println(String.format("Skipping adding handler '%s' to pipeline ", h));
+						keyedPipeline.put(it, deferred);
 					}
-					promises.add(addedToPipeline.get(h));
+					promises.add(deferred.getPromise());
 				});
+
+				// handlers.stream().forEachOrdered(it -> {
+				//
+				// // Ensure a handler is only added once, via a promise
+				// Deferred<Void> deferred = addedToPipeline.get(it);
+				// if (deferred == null) {
+				// deferred = new Deferred<>();
+				// try {
+				//
+				// // If this is the first handler, add as first. No name needed
+				// context.pipeline().addLast(it);
+				// // TODO log
+				// System.out.println("added to pipeline channel handler " + it);
+				// deferred.resolve(null);
+				// } catch (Exception e) {
+				// e.printStackTrace();
+				// deferred.fail(e);
+				// }
+				// addedToPipeline.put(it, deferred);
+				// }
+				// promises.add(deferred.getPromise());
+				// });
 				// Now allow reading of channel
 				context.channel().config().setAutoRead(true);
 				// and resolve
@@ -506,8 +541,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	public String toString() {
 		return String.format(
 				"OsgiChannelHandlerProvider [appName=%s, channelId=%s, factoryPids=%s, handlerNames=%s, inetHost=%s, inetPort=%d]",
-				config.appName(), config.channelId(), Arrays.toString(config.factoryPids()),
-				Arrays.toString(config.handlerNames()), config.inetHost(), config.inetPort());
+				priorConfig.appName(), priorConfig.channelId(), Arrays.toString(priorConfig.factoryPids()),
+				Arrays.toString(priorConfig.handlerNames()), priorConfig.inetHost(), priorConfig.inetPort());
 	}
 
 	private static class Key {
