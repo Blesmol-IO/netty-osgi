@@ -9,8 +9,8 @@ import org.osgi.annotation.versioning.ProviderType;
 @ProviderType
 public interface ConfigurationUtil {
 
-	String createNettyServerConfig(String appName, String hostname, Integer port, List<String> factoryPids, List<String> handlerNames)
-			throws Exception;
+	String createNettyServerConfig(String appName, String hostname, Integer port, List<String> factoryPids,
+			List<String> handlerNames) throws Exception;
 
 	void deleteNettyServerConfig(String configurationPid) throws Exception;
 
@@ -21,11 +21,11 @@ public interface ConfigurationUtil {
 
 		return props;
 	}
-	
+
 	default Dictionary<String, Object> toDynamicChannelHandlerProperties(String channelId, String appName,
 			String hostname, int port, List<String> factoryPids, List<String> handlerNames) {
-		return toDynamicChannelHandlerProperties(channelId, appName, hostname, port,
-				factoryPids.toArray(new String[0]), handlerNames.toArray(new String[0]));
+		return toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids.toArray(new String[0]),
+				handlerNames.toArray(new String[0]));
 	}
 
 	default Dictionary<String, Object> toDynamicChannelHandlerProperties(String channelId, String appName,
@@ -43,6 +43,28 @@ public interface ConfigurationUtil {
 		props.put(ReferenceName.OsgiChannelHandler.CHANNEL_HANDLER,
 				String.format("(%s=%s)", Property.ChannelHandler.CHANNEL_ID, channelId));
 
+		return props;
+	}
+
+	default Dictionary<String, Object> toChannelInitializerProperties(String appName, String hostname, int port,
+			List<String> factoryPids, List<String> handlerNames) {
+		return toChannelInitializerProperties(appName, hostname, port, factoryPids.toArray(new String[0]),
+				handlerNames.toArray(new String[0]));
+	}
+
+	default Dictionary<String, Object> toChannelInitializerProperties(String appName, String hostname, int port,
+			String[] factoryPids, String[] handlerNames) {
+
+		final Hashtable<String, Object> props = new Hashtable<>();
+		props.put(Property.ChannelInitializer.APP_NAME, appName);
+		props.put(Property.ChannelInitializer.INET_HOST, hostname);
+		props.put(Property.ChannelInitializer.INET_PORT, port);
+		props.put(Property.ChannelInitializer.FACTORY_PIDS, factoryPids);
+		props.put(Property.ChannelInitializer.HANDLER_NAMES, handlerNames);
+
+		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLER_FACTORY,
+				String.format("(&(%s=%s)(%s=%s)(%s=%d))", Property.ChannelInitializer.APP_NAME, appName,
+						Property.ChannelInitializer.INET_HOST, hostname, Property.ChannelInitializer.INET_PORT, port));
 		return props;
 	}
 }

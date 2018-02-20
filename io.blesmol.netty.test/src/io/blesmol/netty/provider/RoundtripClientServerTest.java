@@ -65,7 +65,7 @@ public class RoundtripClientServerTest {
 	@Before
 	public void before() throws Exception {
 		configUtil = TestUtils.getService(context, ConfigurationUtil.class, 700);
-		configPid = configUtil.createNettyServerConfig(appName, "localhost", /*ephemeral*/0, factoryPids, handlerNames);
+		configPid = configUtil.createNettyServerConfig(appName, "localhost", /*ephemeral*/54321, factoryPids, handlerNames);
 		String filter = String.format("(&(appName=%s))", appName);
 		server = TestUtils.getService(context, NettyServer.class, 3000, filter);
 	}
@@ -195,8 +195,8 @@ public class RoundtripClientServerTest {
 		// Dunno why, but printing out the channel prevents an NPE when accessing the port...
 		System.out.println(serverChannel);
 		// get the ephemeral port
-		int port = serverChannel.localAddress().getPort();
-		final TestClient client = new TestClient("localhost", port);
+//		int port = serverChannel.localAddress().getPort();
+		final TestClient client = new TestClient("localhost", 54321);
 		client.latch = latch;
 		final ExecutorService executor = Executors.newSingleThreadExecutor();
 		executor.execute(new Runnable() {

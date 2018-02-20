@@ -2,7 +2,7 @@ package io.blesmol.netty.provider;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Hashtable;
+import java.util.Dictionary;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -20,9 +20,8 @@ import org.osgi.util.promise.Deferred;
 import org.osgi.util.promise.Promise;
 
 import io.blesmol.netty.api.Configuration;
+import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyServer;
-import io.blesmol.netty.api.Property;
-import io.blesmol.netty.api.ReferenceName;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -59,14 +58,18 @@ public class NettyServerProvider implements NettyServer {
 	@Reference
 	ConfigurationAdmin configAdmin;
 
+	@Reference
+	ConfigurationUtil configUtil;
+
 	@Reference(scope = ReferenceScope.PROTOTYPE, policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.OPTIONAL)
 	void setChannelInitializer(ChannelInitializer<? extends Channel> channelInitializer, Map<String, Object> props) {
 
 		// Only set once
 		if (!channelInitializerDeferred.getPromise().isDone()) {
 			// TODO: log
-			System.out.println(
-					String.format("Setting channel initializer in '%s' netty server: %s with properties:\n %s", appName, channelInitializer, props));
+			System.out
+					.println(String.format("Setting channel initializer in '%s' netty server: %s with properties:\n %s",
+							appName, channelInitializer, props));
 			channelInitializerDeferred.resolve(channelInitializer);
 		} else {
 			// TODO: log
@@ -104,17 +107,8 @@ public class NettyServerProvider implements NettyServer {
 		channelInitializerConfig = configAdmin
 				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, "?");
 
-		// TODO: generalize as a service
-		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.ChannelInitializer.APP_NAME, appName);
-		props.put(Property.ChannelInitializer.INET_HOST, config.inetHost());
-		props.put(Property.ChannelInitializer.INET_PORT, config.inetPort());
-		props.put(Property.ChannelInitializer.FACTORY_PIDS, config.factoryPids());
-		props.put(Property.ChannelInitializer.HANDLER_NAMES, config.handlerNames());
-
-		// TODO: refine more
-		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLER_FACTORY,
-				String.format("(%s=%s)", Property.ChannelInitializer.APP_NAME, appName));
+		final Dictionary<String, Object> props = configUtil.toChannelInitializerProperties(appName, config.inetHost(),
+				config.inetPort(), config.factoryPids(), config.handlerNames());
 		channelInitializerConfig.update(props);
 
 		// Then sometime in the future start the server

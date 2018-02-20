@@ -27,6 +27,7 @@ import io.blesmol.netty.api.OsgiChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.provider.TestUtils.SkeletonChannelHandler;
 import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
+import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -48,8 +49,8 @@ public class OsgiChannelHandlerProviderStressTest {
 	private final String stressTestHandler = "stressTestHandler";
 	private final List<String> factoryPids = IntStream.range(0, count).mapToObj((i) -> factoryPid).collect(Collectors.toList());
 	private final List<String> handlerNames = IntStream.range(0, count).mapToObj((i) -> stressTestHandler + i).collect(Collectors.toList());
-	private final EmbeddedChannel ch = new EmbeddedChannel();
-	private final String channelId = ch.id().asLongText(); // embedded
+	private final EmbeddedChannel ch = new EmbeddedChannel(DefaultChannelId.newInstance());
+	private final String channelId = ch.id().asLongText();
 
 	@Before
 	public void before() throws Exception {
@@ -78,7 +79,7 @@ public class OsgiChannelHandlerProviderStressTest {
 
 		// Add dynamic handler to channel.
 		// TODO: add 1000 channels and test here
-		ch.pipeline().addLast(dynamicHandler);
+		ch.pipeline().addLast(OsgiChannelHandler.HANDLER_NAME, dynamicHandler);
 
 		// 
 		final CountDownLatch updatedLatch = new CountDownLatch(count);
@@ -98,7 +99,7 @@ public class OsgiChannelHandlerProviderStressTest {
 		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s))",
 				//
 				Constants.OBJECTCLASS, SkeletonChannelHandler.class.getName(),
-				Property.ChannelHandler.HANDLER_NAME, String.format("%s%s", stressTestHandler, count/100),
+				Property.ChannelHandler.HANDLER_NAME, String.format("%s%s", stressTestHandler, count/200),
 				ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid
 		);
 		System.out.println("Got service");
