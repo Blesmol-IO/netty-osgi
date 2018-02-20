@@ -12,8 +12,26 @@ import org.osgi.service.cm.ManagedServiceFactory;
 import org.osgi.util.tracker.ServiceTracker;
 
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 
 public class TestUtils {
+
+	// TODO return trackers and let test cases manage those
+	public static <T> ServiceTracker<T, T> getTracker(BundleContext context, Class<T> clazz) throws Exception {
+		return getTracker(context, clazz, "");
+	}
+
+	public static <T> ServiceTracker<T, T> getTracker(BundleContext context, Class<T> clazz, String filter)
+			throws Exception {
+		ServiceTracker<T, T> st;
+		if (filter != null && !"".equals(filter)) {
+			st = new ServiceTracker<>(context, context.createFilter(filter), null);
+		} else {
+			st = new ServiceTracker<>(context, clazz, null);
+		}
+		st.open();
+		return st;
+	}
 
 	public static <T> T getService(BundleContext context, Class<T> clazz, long timeout) throws Exception {
 		return getService(context, clazz, timeout, "");
@@ -60,11 +78,12 @@ public class TestUtils {
 		@Override
 		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
 			try {
-				registrations.put(pid,
-						context.registerService(ChannelHandler.class, channelHandlerClass.newInstance(), properties));
+				ChannelHandler handler = channelHandlerClass.newInstance();
+				registrations.put(pid, context.registerService(ChannelHandler.class, handler, properties));
 				if (updatedLatch != null) {
 					updatedLatch.countDown();
 				}
+
 			} catch (InstantiationException | IllegalAccessException e) {
 				throw new ConfigurationException(null, "Could not instantiate class " + channelHandlerClass, e);
 			}
@@ -79,6 +98,20 @@ public class TestUtils {
 			}
 		}
 
+	}
+
+	public static class SkeletonChannelHandler implements ChannelHandler {
+		@Override
+		public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+		}
+
+		@Override
+		public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+		}
+
+		@Override
+		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+		}
 	}
 
 }

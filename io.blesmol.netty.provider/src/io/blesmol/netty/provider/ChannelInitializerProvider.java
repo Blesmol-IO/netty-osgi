@@ -57,7 +57,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 			return;
 		}
 
-		ch.pipeline().addFirst(dynamicHandler);
+		ch.pipeline().addFirst(OsgiChannelHandler.HANDLER_NAME, dynamicHandler);
 		// TODO: log trace
 		System.out.println(
 				String.format("Added dynamic handler '%s' to channel with ID '%s'.", dynamicHandler, channelId));
