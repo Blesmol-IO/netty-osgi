@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -71,7 +72,7 @@ public class ConfigurationIntegrationTest {
 		final List<String> handlerNames = new ArrayList<>();
 
 		// Create the server config, channel initializer, and dynamic handler
-		String pid = configUtil.createNettyServerConfig(appName, hostname, port, factoryPids, handlerNames);
+		String pid = configUtil.createNettyServerConfig(appName, hostname, port, factoryPids, handlerNames, Optional.empty());
 
 		// Verify service creation and pipeline being established
 		NettyServer server = getService(NettyServer.class, 3000, appName);

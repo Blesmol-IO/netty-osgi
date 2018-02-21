@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -83,7 +84,7 @@ public class ChannelInitializerMultiChannelsTest {
 		factoryRegistration = context.registerService(ManagedServiceFactory.class, factory, factoryProps);
 
 		initializerConfig
-				.update(configUtil.toChannelInitializerProperties(appName, hostname, port, factoryPids, handlerNames));
+				.update(configUtil.toChannelInitializerProperties(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
 
 		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s)(%s=%d))", Constants.OBJECTCLASS,
 				ChannelInitializer.class.getName(), Property.ChannelInitializer.APP_NAME, appName,

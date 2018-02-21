@@ -3,6 +3,7 @@ package io.blesmol.netty.provider;
 import java.io.IOException;
 import java.util.Dictionary;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -35,6 +36,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	private final AtomicBoolean deactivated = new AtomicBoolean(false);
 	private final Map<String, org.osgi.service.cm.Configuration> configurations = new ConcurrentHashMap<>();
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
+	private volatile Optional<Map<String, Object>> extraProperties;
 
 	@Reference(scope = ReferenceScope.PROTOTYPE, policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE)
 	void setOsgiChannelHandler(OsgiChannelHandler dynamicHandler, Map<String, Object> properties) {
@@ -106,8 +108,11 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	ConfigurationUtil configUtil;
 
 	@Activate
-	void activate(Configuration.ChannelInitializer config) {
+	void activate(Configuration.ChannelInitializer config, Map<String, Object> props) {
 		this.config = config;
+		// hackish, consider prefixing the keys maybe?
+
+		extraProperties = configUtil.toOptionalExtraProperties(props);
 	}
 
 	@Deactivate
@@ -133,7 +138,8 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 		// Update the config and cross our fingers
 		final Dictionary<String, Object> props = configUtil.toDynamicChannelHandlerProperties(channelId,
-				config.appName(), config.inetHost(), config.inetPort(), config.factoryPids(), config.handlerNames());
+				config.appName(), config.inetHost(), config.inetPort(), config.factoryPids(), config.handlerNames(), extraProperties);
+
 		dynamicHandlerConfig.update(props);
 		
 		System.out.println("Initialized channel handler " + this);

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -94,7 +95,7 @@ public class ModifiedChannelHandlerTest {
 		factoryRegistration = context.registerService(ManagedServiceFactory.class, factory, props);
 
 		defaultHandlerProps = configUtil.toDynamicChannelHandlerProperties(channelId, appName, hostname, port,
-				initialFactoryPids, initialHandlerNames);
+				initialFactoryPids, initialHandlerNames, Optional.empty());
 
 		handlerConfig.update(defaultHandlerProps);
 		dynamicHandler = handlerTracker.waitForService(1000);
@@ -127,7 +128,7 @@ public class ModifiedChannelHandlerTest {
 		List<String> handlerNames = Stream.of(handlerRootName + "0", handlerRootName + "A", handlerRootName + "B",
 				handlerRootName + "B2", handlerRootName + "C", handlerRootName + "D").collect(Collectors.toList());
 		final Dictionary<String, Object> props = configUtil.toDynamicChannelHandlerProperties(channelId, appName,
-				hostname, port, factoryPids, handlerNames);
+				hostname, port, factoryPids, handlerNames, Optional.empty());
 		handlerConfig.update(props);
 
 		// wait for the dust to settle
@@ -152,7 +153,7 @@ public class ModifiedChannelHandlerTest {
 		List<String> handlerNames = Stream.of(handlerRootName + "B", handlerRootName + "B2")
 				.collect(Collectors.toList());
 		final Dictionary<String, Object> props = configUtil.toDynamicChannelHandlerProperties(channelId, appName,
-				hostname, port, factoryPids, handlerNames);
+				hostname, port, factoryPids, handlerNames, Optional.empty());
 		handlerConfig.update(props);
 
 		// wait for the dust to settle
@@ -176,7 +177,7 @@ public class ModifiedChannelHandlerTest {
 		List<String> factoryPids = new ArrayList<>();
 		List<String> handlerNames = new ArrayList<>();
 		final Dictionary<String, Object> props = configUtil.toDynamicChannelHandlerProperties(channelId, appName,
-				hostname, port, factoryPids, handlerNames);
+				hostname, port, factoryPids, handlerNames, Optional.empty());
 		handlerConfig.update(props);
 
 		// wait for the dust to settle

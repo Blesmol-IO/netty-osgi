@@ -3,6 +3,8 @@ package io.blesmol.netty.provider;
 import java.io.IOException;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -22,7 +24,7 @@ import io.blesmol.netty.api.ReferenceName;
 public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	private final AtomicBoolean deactivated = new AtomicBoolean(false);
-	
+
 	@Reference
 	ConfigurationAdmin admin;
 
@@ -51,7 +53,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	List<Configuration> configurations = new CopyOnWriteArrayList<>();
 
 	@Override
-	public String createNettyServerConfig(String appName, String hostname, Integer port, List<String> handlers, List<String> handlerNames) throws Exception {
+	public String createNettyServerConfig(String appName, String hostname, Integer port, List<String> handlers,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
 
 		Configuration config = admin.createFactoryConfiguration(io.blesmol.netty.api.Configuration.NETTY_SERVER_PID,
 				"?");
@@ -61,27 +64,32 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		final String[] propHandlers = handlers.toArray(new String[0]);
 		// FIXME: ldap injection
 		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
-				Property.ChannelInitializer.APP_NAME, appName,
-				Property.ChannelInitializer.INET_HOST, hostname,
-				Property.ChannelInitializer.INET_PORT, port,
-				Property.ChannelInitializer.FACTORY_PIDS, propHandlers);
+				Property.ChannelInitializer.APP_NAME, appName, Property.ChannelInitializer.INET_HOST, hostname,
+				Property.ChannelInitializer.INET_PORT, port, Property.ChannelInitializer.FACTORY_PIDS, propHandlers);
 
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER, channelInitializerTarget);
 		props.put(Property.NettyServer.INET_HOST, hostname);
 		props.put(Property.NettyServer.INET_PORT, port);
 		props.put(Property.NettyServer.FACTORY_PIDS, propHandlers);
 		props.put(Property.NettyServer.HANDLER_NAMES, handlerNames.toArray(new String[0]));
+
+		if (extraProperties.isPresent()) {
+			extraProperties.get().entrySet().forEach(es -> {
+				props.put(Property.EXTRA_PREFIX + es.getKey(), es.getValue());
+			});
+			props.put(Property.EXTRA_PROPERTIES, true);
+		}
+
 		config.update(props);
 		configurations.add(config);
-		
+
 		return config.getPid();
 	}
 
 	@Override
 	public void deleteNettyServerConfig(String pid) throws Exception {
 
-		final String filter = String.format("(%s=%s)",
-				Constants.SERVICE_PID, pid);
+		final String filter = String.format("(%s=%s)", Constants.SERVICE_PID, pid);
 
 		Configuration[] configs = admin.listConfigurations(filter);
 		if (configs == null) {
@@ -94,6 +102,5 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			config.delete();
 		}
 	}
-
 
 }

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -62,7 +63,7 @@ public class OsgiChannelHandlerProviderStressTest {
 				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, "?");
 
 		// Update the dynamic handler config
-		final Dictionary<String, Object> props = util.toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids, handlerNames);
+		final Dictionary<String, Object> props = util.toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty());
 		dynamicHandlerConfig.update(props);
 
 		String filter = String.format("(&(%s=%s)(%s=%s))",

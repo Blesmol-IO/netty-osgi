@@ -1,13 +1,17 @@
 package io.blesmol.netty.provider;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,15 +28,18 @@ import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.cm.ManagedServiceFactory;
+import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyServer;
+import io.blesmol.netty.api.Property;
 import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -60,12 +67,19 @@ public class RoundtripClientServerTest {
 	static final String appName = RoundtripClientServerTest.class.getName();
 	static final String factoryPid = RoundtripClientServerTest.class.getName();
 	static final List<String> factoryPids = Arrays.asList(factoryPid);
-	static final List<String> handlerNames = Arrays.asList("testServerHandler1");
+	static final String handlerName = "gibson";
+	static final List<String> handlerNames = Arrays.asList(handlerName);
+	static final String expectedKey = "hackThePlanet";
+	static final String expectedValue = "cookieMonster";
 
 	@Before
 	public void before() throws Exception {
 		configUtil = TestUtils.getService(context, ConfigurationUtil.class, 700);
-		configPid = configUtil.createNettyServerConfig(appName, "localhost", /*ephemeral*/54321, factoryPids, handlerNames);
+		
+		Map<String, Object> extraProps = new HashMap<>();
+		extraProps.put(expectedKey, expectedValue);
+		configUtil.toOptionalExtraProperties(extraProps);
+		configPid = configUtil.createNettyServerConfig(appName, "localhost", 54321, factoryPids, handlerNames, Optional.of(extraProps));
 		String filter = String.format("(&(appName=%s))", appName);
 		server = TestUtils.getService(context, NettyServer.class, 3000, filter);
 	}
@@ -115,14 +129,12 @@ public class RoundtripClientServerTest {
 			IntStream.range(0, message.capacity()).forEach(i -> message.writeByte(i));
 			expected = message.toString(StandardCharsets.UTF_8);
 			ctx.writeAndFlush(message);
-			System.out.println("c->s wrote data");
 		}
 
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
 			ByteBuf buf = (ByteBuf) msg;
 			actual = buf.toString(StandardCharsets.UTF_8);
-			System.out.println("c<-s read data");
 		}
 		
 		@Override
@@ -193,6 +205,7 @@ public class RoundtripClientServerTest {
 		final ChannelFuture future = server.promise().getValue();
 		final ServerSocketChannel serverChannel = (ServerSocketChannel) future.channel();
 		// Dunno why, but printing out the channel prevents an NPE when accessing the port...
+		// sometimes... sometimes not. weird issue in netty here
 		System.out.println(serverChannel);
 		// get the ephemeral port
 //		int port = serverChannel.localAddress().getPort();
@@ -213,6 +226,15 @@ public class RoundtripClientServerTest {
 		
 		// Verify
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
+		
+		// Does the service have the expected properties?
+		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s))", Constants.OBJECTCLASS, ChannelHandler.class.getName(),
+				Property.ChannelHandler.HANDLER_NAME, handlerName, expectedKey, expectedValue);
+		ServiceTracker<ChannelHandler, ChannelHandler> handlerTracker = TestUtils.getTracker(context,
+				ChannelHandler.class, filter);
+		assertNotNull(handlerTracker);
+
+		// Did the roundtrip values get set correctly?
 		assertTrue(!client.testHandler.actual.isEmpty());
 		assertTrue(!client.testHandler.expected.isEmpty());
 		assertEquals(client.testHandler.actual, client.testHandler.expected);

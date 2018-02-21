@@ -89,7 +89,7 @@ public class NettyServerProvider implements NettyServer {
 	}
 
 	@Activate
-	void activate(Configuration.NettyServer config, Map<String, ?> properties) throws Exception {
+	void activate(Configuration.NettyServer config, Map<String, Object> properties) throws Exception {
 
 		if (closed.get()) {
 			// TODO: log
@@ -108,7 +108,7 @@ public class NettyServerProvider implements NettyServer {
 				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, "?");
 
 		final Dictionary<String, Object> props = configUtil.toChannelInitializerProperties(appName, config.inetHost(),
-				config.inetPort(), config.factoryPids(), config.handlerNames());
+				config.inetPort(), config.factoryPids(), config.handlerNames(), configUtil.toOptionalExtraProperties(properties));
 		channelInitializerConfig.update(props);
 
 		// Then sometime in the future start the server

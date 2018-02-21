@@ -7,6 +7,9 @@ public interface Property {
 	 * Application name
 	 */
 	String APP_NAME = "appName";
+	
+	String EXTRA_PROPERTIES = "extraProperties";	
+	String EXTRA_PREFIX = "extraProperty.";
 
 	interface HandlerConfig extends Property {
 		String INET_HOST = "inetHost";
