@@ -22,6 +22,7 @@ import org.osgi.util.promise.Promise;
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyServer;
+import io.blesmol.netty.api.ReferenceName;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -49,10 +50,10 @@ public class NettyServerProvider implements NettyServer {
 	@Reference(scope = ReferenceScope.PROTOTYPE)
 	ServerBootstrap server;
 
-	@Reference(scope = ReferenceScope.PROTOTYPE)
+	@Reference(name = ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP)
 	EventLoopGroup bossGroup;
 
-	@Reference(scope = ReferenceScope.PROTOTYPE)
+	@Reference(name = ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP)
 	EventLoopGroup workerGroup;
 
 	@Reference

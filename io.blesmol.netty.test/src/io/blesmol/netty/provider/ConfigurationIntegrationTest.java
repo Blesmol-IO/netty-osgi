@@ -72,7 +72,7 @@ public class ConfigurationIntegrationTest {
 		final List<String> handlerNames = new ArrayList<>();
 
 		// Create the server config, channel initializer, and dynamic handler
-		String pid = configUtil.createNettyServerConfig(appName, hostname, port, factoryPids, handlerNames, Optional.empty());
+		String[] pids = configUtil.createNettyServer(appName, hostname, port, factoryPids, handlerNames, Optional.empty());
 
 		// Verify service creation and pipeline being established
 		NettyServer server = getService(NettyServer.class, 3000, appName);
@@ -90,7 +90,7 @@ public class ConfigurationIntegrationTest {
 
 		// Delete the config and wait so the service manager factory can
 		// unregister the service
-		configUtil.deleteNettyServerConfig(pid);
+		configUtil.deleteConfigurationPid(pids);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 	}
 

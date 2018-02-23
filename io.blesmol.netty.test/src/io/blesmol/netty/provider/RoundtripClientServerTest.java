@@ -62,7 +62,7 @@ public class RoundtripClientServerTest {
 
 	private NettyServer server;
 	
-	String configPid;
+	String[] configPids;
 
 	static final String appName = RoundtripClientServerTest.class.getName();
 	static final String factoryPid = RoundtripClientServerTest.class.getName();
@@ -79,14 +79,14 @@ public class RoundtripClientServerTest {
 		Map<String, Object> extraProps = new HashMap<>();
 		extraProps.put(expectedKey, expectedValue);
 		configUtil.toOptionalExtraProperties(extraProps);
-		configPid = configUtil.createNettyServerConfig(appName, "localhost", 54321, factoryPids, handlerNames, Optional.of(extraProps));
-		String filter = String.format("(&(appName=%s))", appName);
+		configPids = configUtil.createNettyServer(appName, "localhost", 54321, factoryPids, handlerNames, Optional.of(extraProps));
+		String filter = String.format("(&(%s=%s)(%s=%s))", Property.NettyServer.APP_NAME, appName, Constants.OBJECTCLASS, NettyServer.class.getName());
 		server = TestUtils.getService(context, NettyServer.class, 3000, filter);
 	}
 
 	@After
 	public void after() throws Exception {
-		configUtil.deleteNettyServerConfig(configPid);
+		configUtil.deleteConfigurationPid(configPids);
         server = null;
 	}
 

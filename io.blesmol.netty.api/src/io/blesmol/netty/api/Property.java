@@ -10,7 +10,11 @@ public interface Property {
 	
 	String EXTRA_PROPERTIES = "extraProperties";	
 	String EXTRA_PREFIX = "extraProperty.";
-
+	
+	interface EventLoopGroup extends Property {
+		String GROUP_NAME = "groupName";
+	}
+	
 	interface HandlerConfig extends Property {
 		String INET_HOST = "inetHost";
 		String INET_PORT = "inetPort";
