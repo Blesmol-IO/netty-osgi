@@ -79,12 +79,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public List<String> createNettyClient(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> channelId) throws Exception {
 
 		final List<String> results = new ArrayList<>();
 		results.add(createEventLoopGroup(appName, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
 		results.add(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
-		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties));
+		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties, channelId));
 		return results;
 	}
 
@@ -150,7 +150,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public String createNettyClientConfig(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> channelId) throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(Property.NettyClient.APP_NAME, appName);
 
@@ -171,8 +171,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(Property.NettyClient.INET_PORT, port);
 		props.put(Property.NettyClient.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
 		props.put(Property.NettyClient.HANDLER_NAMES, handlerNames.toArray(EMPTY_ARRAY));
-
-		// addExtraProperties(props, extraProperties);
+		props.put(Property.NettyClient.CHANNEL_ID, channelId.orElse(""));
 
 		return createConfiguration(io.blesmol.netty.api.Configuration.NETTY_CLIENT_PID, props);
 	}

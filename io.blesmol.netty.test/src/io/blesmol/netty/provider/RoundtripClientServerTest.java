@@ -66,7 +66,7 @@ public class RoundtripClientServerTest {
 		configPids = configUtil.createNettyServer(serverAppName, "localhost", 54321, serverFactoryPids,
 				serverHandlerNames, Optional.empty());
 		configPids.addAll(configUtil.createNettyClient(clientAppName, "localhost", 54321, clientFactoryPids,
-				clientHandlerNames, Optional.empty()));
+				clientHandlerNames, Optional.empty(), Optional.empty()));
 	}
 
 	@After

@@ -38,6 +38,8 @@ public interface Configuration {
 
 		// Disable auto read until handlers are ready
 		boolean optionAutoRead() default false;
+		
+		String channelId() default "";
 	}
 
 	String NETTY_SERVER_PID = "io.blesmol.netty.api.NettyServer";

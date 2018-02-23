@@ -62,7 +62,7 @@ public class ExtraPropertiesTest {
 		configPids = configUtil.createNettyServer(serverAppName, "localhost", 54323, serverFactoryPids,
 				serverHandlerNames, Optional.of(extras));
 		configPids.addAll(configUtil.createNettyClient(clientAppName, "localhost", 54323, clientFactoryPids,
-				clientHandlerNames, Optional.of(extras)));
+				clientHandlerNames, Optional.of(extras), Optional.empty()));
 	}
 
 	@After
