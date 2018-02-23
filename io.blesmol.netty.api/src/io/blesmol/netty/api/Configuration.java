@@ -26,13 +26,18 @@ public interface Configuration {
 	@interface NettyClient {
 		String appName();
 
-		String destinationHost();
+		String inetHost();
 
-		int destinationPort();
+		int inetPort();
+		
+		String[] factoryPids();
+		
+		String[] handlerNames();
 
 		Class<? extends Channel> channel() default NioSocketChannel.class;
 
-		boolean optionAutoRead() default true;
+		// Disable auto read until handlers are ready
+		boolean optionAutoRead() default false;
 	}
 
 	String NETTY_SERVER_PID = "io.blesmol.netty.api.NettyServer";

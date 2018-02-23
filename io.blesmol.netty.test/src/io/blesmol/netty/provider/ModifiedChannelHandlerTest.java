@@ -32,7 +32,7 @@ import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.OsgiChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.provider.TestUtils.SkeletonChannelHandler;
-import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
+import io.blesmol.netty.provider.TestUtils.TestChannelHandlerFactory;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 
@@ -48,7 +48,7 @@ public class ModifiedChannelHandlerTest {
 	private static OsgiChannelHandler dynamicHandler;
 	private static List<ServiceTracker<?, ?>> trackers = new CopyOnWriteArrayList<>();
 	private static ServiceTracker<OsgiChannelHandler, OsgiChannelHandler> handlerTracker;
-	private static TestServerHandlerFactory factory;
+	private static TestChannelHandlerFactory factory;
 	private static ServiceRegistration<ManagedServiceFactory> factoryRegistration;
 
 	private final static String appName = ModifiedChannelHandlerTest.class.getName();
@@ -90,7 +90,7 @@ public class ModifiedChannelHandlerTest {
 		trackers.add(handlerTracker);
 
 		Hashtable<String, Object> props = new Hashtable<>();
-		factory = new TestServerHandlerFactory(context, SkeletonChannelHandler.class);
+		factory = new TestChannelHandlerFactory(context, SkeletonChannelHandler.class);
 		props.put(Constants.SERVICE_PID, factoryPid);
 		factoryRegistration = context.registerService(ManagedServiceFactory.class, factory, props);
 

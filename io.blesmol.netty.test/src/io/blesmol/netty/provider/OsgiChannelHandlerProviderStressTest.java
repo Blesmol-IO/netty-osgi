@@ -27,7 +27,7 @@ import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.OsgiChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.provider.TestUtils.SkeletonChannelHandler;
-import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
+import io.blesmol.netty.provider.TestUtils.TestChannelHandlerFactory;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 
@@ -88,7 +88,7 @@ public class OsgiChannelHandlerProviderStressTest {
 
 		// Register server handler factory, which will be called by the dynamic handler
 		Hashtable<String, Object> props = new Hashtable<>();
-		TestServerHandlerFactory factory = new TestServerHandlerFactory(context, SkeletonChannelHandler.class, updatedLatch, deletedLatch);
+		TestChannelHandlerFactory factory = new TestChannelHandlerFactory(context, SkeletonChannelHandler.class, updatedLatch, deletedLatch);
 		props.put(Constants.SERVICE_PID, factoryPid);
 		ServiceRegistration<ManagedServiceFactory> sr = context.registerService(ManagedServiceFactory.class, factory, props);
 

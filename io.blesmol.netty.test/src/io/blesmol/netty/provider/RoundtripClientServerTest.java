@@ -1,22 +1,16 @@
 package io.blesmol.netty.provider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.nio.charset.StandardCharsets;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
 
 import org.junit.After;
 import org.junit.Before;
@@ -27,166 +21,104 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
+import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
-import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.api.NettyServer;
+import io.blesmol.netty.api.NettyClient;
 import io.blesmol.netty.api.Property;
-import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
-import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.blesmol.netty.provider.TestUtils.TestChannelHandlerFactory;
+import io.blesmol.netty.provider.TestUtils.TestClientHandler;
+import io.blesmol.netty.provider.TestUtils.TestServerHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RoundtripClientServerTest {
 
-	final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class)
-			.getBundleContext();
-	
+	final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class).getBundleContext();
 
 	private ConfigurationUtil configUtil;
 
-	private NettyServer server;
-	
-	String[] configPids;
+	private NettyClient client;
 
-	static final String appName = RoundtripClientServerTest.class.getName();
-	static final String factoryPid = RoundtripClientServerTest.class.getName();
-	static final List<String> factoryPids = Arrays.asList(factoryPid);
-	static final String handlerName = "gibson";
-	static final List<String> handlerNames = Arrays.asList(handlerName);
+	List<String> configPids;
+
+	static final String serverAppName = RoundtripClientServerTest.class.getName() + ":server";
+	static final String clientAppName = RoundtripClientServerTest.class.getName() + ":client";
+	static final String serverFactoryPid = TestServerHandler.class.getName();
+	static final String clientFactoryPid = TestClientHandler.class.getName();
+	static final List<String> serverFactoryPids = Arrays.asList(serverFactoryPid);
+	static final List<String> clientFactoryPids = Arrays.asList(clientFactoryPid);
+	static final String serverHandlerName = "gibson";
+	static final String clientHandlerName = "thePlague";
+	static final List<String> serverHandlerNames = Arrays.asList(serverHandlerName);
+	static final List<String> clientHandlerNames = Arrays.asList(clientHandlerName);
 	static final String expectedKey = "hackThePlanet";
 	static final String expectedValue = "cookieMonster";
 
 	@Before
 	public void before() throws Exception {
 		configUtil = TestUtils.getService(context, ConfigurationUtil.class, 700);
-		
-		Map<String, Object> extraProps = new HashMap<>();
-		extraProps.put(expectedKey, expectedValue);
-		configUtil.toOptionalExtraProperties(extraProps);
-		configPids = configUtil.createNettyServer(appName, "localhost", 54321, factoryPids, handlerNames, Optional.of(extraProps));
-		String filter = String.format("(&(%s=%s)(%s=%s))", Property.NettyServer.APP_NAME, appName, Constants.OBJECTCLASS, NettyServer.class.getName());
-		server = TestUtils.getService(context, NettyServer.class, 3000, filter);
+
+		configPids = configUtil.createNettyServer(serverAppName, "localhost", 54321, serverFactoryPids,
+				serverHandlerNames, Optional.empty());
+		configPids.addAll(configUtil.createNettyClient(clientAppName, "localhost", 54321, clientFactoryPids,
+				clientHandlerNames, Optional.empty()));
 	}
 
 	@After
 	public void after() throws Exception {
-		configUtil.deleteConfigurationPid(configPids);
-        server = null;
+		configUtil.deleteConfigurationPids(configPids);
 	}
 
-	static class TestServerHandler extends ChannelInboundHandlerAdapter {
-
-		@Override
-		public void channelActive(ChannelHandlerContext ctx) throws Exception {
-			System.out.println("Roundtrip server handler activated");
-			super.channelActive(ctx);
-		}
-		
-		@Override
-		public void channelRead(ChannelHandlerContext ctx, Object msg) {
-			System.out.println("Roundtrip server handler read message, writing back");
-			ctx.write(msg);
-		}
+	static class LatchTestServerHandler extends TestServerHandler implements LatchChannelHandler {
+		CountDownLatch latch = null;
 
 		@Override
 		public void channelReadComplete(ChannelHandlerContext ctx) {
-			System.out.println("Roundtrip server handler flushing");
-			ctx.flush();
+			super.channelReadComplete(ctx);
+			if (latch != null)
+				latch.countDown();
 		}
 
 		@Override
-		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-			cause.printStackTrace();
-			ctx.close();
+		public void setLatch(CountDownLatch latch) {
+			this.latch = latch;
+
 		}
 
 	}
 
-	static class TestClientHandler extends ChannelInboundHandlerAdapter {
+	static class LatchTestClientHandler extends TestClientHandler implements LatchChannelHandler {
 
-		String actual = "";
-		String expected = "";
+		CountDownLatch latch = null;
+
+		@Override
+		public void setLatch(CountDownLatch latch) {
+			this.latch = latch;
+
+		}
 
 		@Override
 		public void channelActive(ChannelHandlerContext ctx) {
-			ByteBuf message = Unpooled.buffer(32);
-			IntStream.range(0, message.capacity()).forEach(i -> message.writeByte(i));
-			expected = message.toString(StandardCharsets.UTF_8);
-			ctx.writeAndFlush(message);
+			super.channelActive(ctx);
+
+			if (latch != null) {
+				System.out.println("Decrementing latch");
+				latch.countDown();
+			}
 		}
 
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
-			ByteBuf buf = (ByteBuf) msg;
-			actual = buf.toString(StandardCharsets.UTF_8);
-		}
-		
-		@Override
-		public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-			ctx.close();
-		}
-
-		@Override
-		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-			cause.printStackTrace();
-			ctx.close();
-		}
-	}
-
-	static class TestClient {
-
-		final String hostname;
-		final int port;
-		TestClient(String hostname, int port) {
-			this.hostname = hostname;
-			this.port = port;
-		}
-		CountDownLatch latch;
-		EventLoopGroup group = new NioEventLoopGroup();
-		TestClientHandler testHandler = new TestClientHandler();
-		ChannelFuture closeFuture;
-
-		public void start() throws Exception {
-			final Bootstrap b = new Bootstrap();
-			b.group(group)
-				.channel(NioSocketChannel.class)
-				.option(ChannelOption.TCP_NODELAY, true)
-				.handler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					public void initChannel(SocketChannel ch) throws Exception {
-						ChannelPipeline p = ch.pipeline();
-						p.addLast(testHandler);
-					}
-				});
-
-			// Start the client.
-			closeFuture = b.connect(hostname, port).channel().closeFuture();
-			closeFuture.addListener(	new ChannelFutureListener() {
-				@Override
-				public void operationComplete(ChannelFuture future) throws Exception {
-					if (future.isSuccess()) {
-						latch.countDown();
-					} else {
-						throw new RuntimeException("Connection unsuccessful");
-					}
-				}
-			});
+			super.channelRead(ctx, msg);
+			if (latch != null) {
+				System.out.println("Decrementing latch");
+				latch.countDown();
+			}
 		}
 
 	}
@@ -195,51 +127,86 @@ public class RoundtripClientServerTest {
 	public void shouldRoundtripMessage() throws Exception {
 
 		// Register server handler factory, which will be called
-		Hashtable<String, Object> props = new Hashtable<>();
-		TestServerHandlerFactory factory = new TestServerHandlerFactory(context, TestServerHandler.class);
-		props.put(Constants.SERVICE_PID, factoryPid);
-		ServiceRegistration<ManagedServiceFactory> sr = context.registerService(ManagedServiceFactory.class, factory, props);
+		Hashtable<String, Object> serverHandlerProps = new Hashtable<>();
+		CountDownLatch serverLatch = new CountDownLatch(1);
+		RoundtripTestChannelHandlerFactory serverHandlerFactory = new RoundtripTestChannelHandlerFactory(context,
+				LatchTestServerHandler.class, serverLatch);
+		serverHandlerProps.put(Constants.SERVICE_PID, serverFactoryPid);
+		ServiceRegistration<ManagedServiceFactory> serverRegistration = context
+				.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps);
+
+		// Register client handler factory, which will be called
+		Hashtable<String, Object> clientHandlerProps = new Hashtable<>();
+		CountDownLatch clientLatch = new CountDownLatch(2);
+		RoundtripTestChannelHandlerFactory clientHandlerFactory = new RoundtripTestChannelHandlerFactory(context,
+				LatchTestClientHandler.class, clientLatch);
+		clientHandlerProps.put(Constants.SERVICE_PID, clientFactoryPid);
+		ServiceRegistration<ManagedServiceFactory> clientRegistration = context
+				.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps);
 
 		// Run client and register latch
-		final CountDownLatch latch = new CountDownLatch(1);
-		final ChannelFuture future = server.promise().getValue();
-		final ServerSocketChannel serverChannel = (ServerSocketChannel) future.channel();
-		// Dunno why, but printing out the channel prevents an NPE when accessing the port...
-		// sometimes... sometimes not. weird issue in netty here
-		System.out.println(serverChannel);
-		// get the ephemeral port
-//		int port = serverChannel.localAddress().getPort();
-		final TestClient client = new TestClient("localhost", 54321);
-		client.latch = latch;
-		final ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(new Runnable() {
+		final CountDownLatch connectLatch = new CountDownLatch(1);
+
+		// Be quick, get the client! It may disappear shortly
+		String clientFilter = String.format("(&(%s=%s)(%s=%s))", Property.NettyClient.APP_NAME, clientAppName,
+				Constants.OBJECTCLASS, NettyClient.class.getName());
+		client = TestUtils.getService(context, NettyClient.class, 3000, clientFilter);
+		client.promise().onResolve(new Runnable() {
+
 			@Override
 			public void run() {
+				System.out.println("resolved client connection");
 				try {
-					client.start();
-				} catch (Exception e) {
+					client.promise().getValue().addListener(new ChannelFutureListener() {
+						@Override
+						public void operationComplete(ChannelFuture future) throws Exception {
+							if (future.isSuccess()) {
+								connectLatch.countDown();
+							} else {
+								throw new RuntimeException(future.cause());
+							}
+						}
+					});
+				} catch (InvocationTargetException | InterruptedException e) {
 					e.printStackTrace();
 					fail();
 				}
+
 			}
 		});
-		
-		// Verify
-		assertTrue(latch.await(2, TimeUnit.SECONDS));
-		
-		// Does the service have the expected properties?
-		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s))", Constants.OBJECTCLASS, ChannelHandler.class.getName(),
-				Property.ChannelHandler.HANDLER_NAME, handlerName, expectedKey, expectedValue);
-		ServiceTracker<ChannelHandler, ChannelHandler> handlerTracker = TestUtils.getTracker(context,
-				ChannelHandler.class, filter);
-		assertNotNull(handlerTracker);
 
-		// Did the roundtrip values get set correctly?
-		assertTrue(!client.testHandler.actual.isEmpty());
-		assertTrue(!client.testHandler.expected.isEmpty());
-		assertEquals(client.testHandler.actual, client.testHandler.expected);
-		
-		sr.unregister();
+		// Verify
+		assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
+		assertTrue(serverLatch.await(3, TimeUnit.SECONDS));
+		assertTrue(clientLatch.await(4, TimeUnit.SECONDS));
+
+		// Cleanup
+		serverRegistration.unregister();
+		clientRegistration.unregister();
+
 	}
 
+	static interface LatchChannelHandler extends ChannelHandler {
+		void setLatch(CountDownLatch latch);
+	}
+
+	static class RoundtripTestChannelHandlerFactory extends TestChannelHandlerFactory {
+
+		private final CountDownLatch latch;
+
+		public RoundtripTestChannelHandlerFactory(BundleContext context,
+				Class<? extends ChannelHandler> channelHandlerClass, CountDownLatch latch) {
+			super(context, channelHandlerClass);
+			this.latch = latch;
+		}
+
+		@Override
+		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
+			super.updated(pid, properties);
+			ChannelHandler handler = getHandlerViaPid(pid);
+			if (handler != null && handler instanceof LatchChannelHandler) {
+				((LatchChannelHandler) handler).setLatch(latch);
+			}
+		}
+	}
 }

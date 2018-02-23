@@ -309,7 +309,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 						// Fail the channel handler defer if its expected configuration cannot be
 						// updated
 						try {
-							c.update(configUtil.toChannelHandlerProps(handlerName, channelId, extraProperties));
+							c.update(configUtil.toChannelHandlerProps(priorConfig.appName(), handlerName, channelId, extraProperties));
 						} catch (Exception e) {
 							e.printStackTrace();
 							deferred.fail(e);
@@ -376,6 +376,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 				});
 
 				// Now allow reading of channel
+				System.out.println(String.format("Enabling auto read on channel id %s", context.channel().id().asLongText()));
 				context.channel().config().setAutoRead(true);
 				// and resolve
 				result.resolveWith(Promises.all(promises));
@@ -444,6 +445,18 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
 	}
 
+	@Override
+	public void channelActive(ChannelHandlerContext ctx) throws Exception {
+		System.out.println(String.format("Dynamic handler for channel id '%s' is active", priorConfig.channelId()));
+		super.channelActive(ctx);
+	}
+	
+	@Override
+	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		System.out.println(String.format("Dynamic handler for channel id '%s' is active", priorConfig.channelId()));
+		super.channelInactive(ctx);
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * 

@@ -1,6 +1,7 @@
 package io.blesmol.netty.example;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.osgi.service.component.annotations.*;
@@ -13,16 +14,17 @@ public class Application {
 	@Reference
 	ConfigurationUtil configUtil;
 
-	String configPid;
+	List<String> configPids;
 	
 	@Activate
 	void activate() throws Exception {
-		configPid = configUtil.createNettyServerConfig(Application.class.getName(), "localhost", 8484, new ArrayList<>(), new ArrayList<>(), Optional.empty());
+		List<String> configPids = new ArrayList<>();
+		configPids.add(configUtil.createNettyServerConfig(Application.class.getName(), "localhost", 8484, new ArrayList<>(), new ArrayList<>(), Optional.empty()));
 	}
 
 	@Deactivate
 	void deactivate() throws Exception {
-		configUtil.deleteNettyServerConfig(configPid);
+		configUtil.deleteConfigurationPids(configPids);
 	}
 
 }

@@ -25,12 +25,18 @@ public interface Property {
 	interface NettyServer extends HandlerConfig {
 		String CHANNEL = "channel";
 	}
+	
+	interface NettyClient extends HandlerConfig {
+		String CHANNEL = "channel";
+		String OPTION_AUTO_READ = "optionAutoRead";
+	}
 
 	interface OsgiChannelHandler extends HandlerConfig {
 		String CHANNEL_ID = "channelId";
 	}
 
 	interface ChannelHandler {
+		String APP_NAME = Property.APP_NAME;
 		String CHANNEL_ID = OsgiChannelHandler.CHANNEL_ID;
 		String HANDLER_NAME = "handlerName";
 	}

@@ -16,12 +16,12 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
-import org.osgi.service.component.annotations.ReferenceScope;
 
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.OsgiChannelHandler;
 import io.blesmol.netty.api.Property;
+import io.blesmol.netty.api.ReferenceName;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -38,7 +38,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 	private volatile Optional<Map<String, Object>> extraProperties;
 
-	@Reference(scope = ReferenceScope.PROTOTYPE, policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE)
+	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE, name = ReferenceName.ChannelInitializer.CHANNEL_HANDLERS)
 	void setOsgiChannelHandler(OsgiChannelHandler dynamicHandler, Map<String, Object> properties) {
 
 		final String channelId = (String) properties.get(Property.OsgiChannelHandler.CHANNEL_ID);
@@ -52,7 +52,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 		final Channel ch = channels.remove(channelId);
 		if (ch == null) {
 			// TODO: log debug
-			System.err.println(String.format("Ignoring dynamic handler '%s' with null channel ID, with properties\n%s",
+			System.err.println(String.format("Ignoring dynamic handler '%s' with null channel, with properties\n%s",
 					dynamicHandler, properties));
 			return;
 		}
@@ -110,8 +110,6 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	@Activate
 	void activate(Configuration.ChannelInitializer config, Map<String, Object> props) {
 		this.config = config;
-		// hackish, consider prefixing the keys maybe?
-
 		extraProperties = configUtil.toOptionalExtraProperties(props);
 	}
 

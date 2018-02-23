@@ -30,7 +30,7 @@ import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.Property;
-import io.blesmol.netty.provider.TestUtils.TestServerHandlerFactory;
+import io.blesmol.netty.provider.TestUtils.TestChannelHandlerFactory;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -79,7 +79,7 @@ public class ChannelInitializerMultiChannelsTest {
 
 		Hashtable<String, Object> factoryProps = new Hashtable<>();
 		// Puposely use a non-sharable handler
-		TestServerHandlerFactory factory = new TestServerHandlerFactory(context, ChannelInboundHandlerAdapter.class);
+		TestChannelHandlerFactory factory = new TestChannelHandlerFactory(context, ChannelInboundHandlerAdapter.class);
 		factoryProps.put(Constants.SERVICE_PID, factoryPid);
 		factoryRegistration = context.registerService(ManagedServiceFactory.class, factory, factoryProps);
 

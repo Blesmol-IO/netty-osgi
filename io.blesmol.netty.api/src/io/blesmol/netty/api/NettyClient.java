@@ -1,6 +1,7 @@
 package io.blesmol.netty.api;
 
 import org.osgi.annotation.versioning.ProviderType;
+import org.osgi.util.promise.Promise;
 
 import io.netty.channel.ChannelFuture;
 
@@ -9,9 +10,9 @@ public interface NettyClient {
 
 	/**
 	 * 
-	 * The connect channel future
+	 * A promise for a connect channel future
 	 * 
-	 * @return a channel future
+	 * @return a promised channel future
 	 */
-	ChannelFuture future();
+	Promise<ChannelFuture> promise();
 }
