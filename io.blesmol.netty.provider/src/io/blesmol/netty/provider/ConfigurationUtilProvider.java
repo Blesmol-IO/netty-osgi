@@ -163,7 +163,9 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event group at the application level currently
-		String eventGroupTarget = String.format("(&(%s=%s)(%s=%s))", Property.EventLoopGroup.APP_NAME, appName,
+		// If the server app name is present, use that instead of this app name, so as to chain off the
+		// server's event loop
+		String eventGroupTarget = String.format("(&(%s=%s)(%s=%s))", Property.EventLoopGroup.APP_NAME, serverAppName.orElse(appName),
 				Property.EventLoopGroup.GROUP_NAME, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
 
