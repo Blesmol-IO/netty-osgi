@@ -23,7 +23,9 @@ public interface ReferenceName {
 	interface NettyClient {
 		String CHANNEL_INITIALIZER = "channelInitializer";
 		String CHANNEL_INITIALIZER_TARGET = CHANNEL_INITIALIZER + DOT_TARGET;
-		String EVENT_LOOP_GROUP = "eventGroup";
+		// Use same name as netty server, so both can match if desired
+		// Useful for embedded netty clients
+		String EVENT_LOOP_GROUP = NettyServer.WORKER_EVENT_LOOP_GROUP;
 		String EVENT_LOOP_GROUP_TARGET = EVENT_LOOP_GROUP + DOT_TARGET;
 
 	}

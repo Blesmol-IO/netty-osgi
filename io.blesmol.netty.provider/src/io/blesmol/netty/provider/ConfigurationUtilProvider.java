@@ -79,12 +79,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public List<String> createNettyClient(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> channelId) throws Exception {
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName) throws Exception {
 
 		final List<String> results = new ArrayList<>();
 		results.add(createEventLoopGroup(appName, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
 		results.add(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
-		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties, channelId));
+		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties, serverAppName));
 		return results;
 	}
 
@@ -150,7 +150,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public String createNettyClientConfig(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> channelId) throws Exception {
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName) throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(Property.NettyClient.APP_NAME, appName);
 
@@ -171,7 +171,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(Property.NettyClient.INET_PORT, port);
 		props.put(Property.NettyClient.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
 		props.put(Property.NettyClient.HANDLER_NAMES, handlerNames.toArray(EMPTY_ARRAY));
-		props.put(Property.NettyClient.CHANNEL_ID, channelId.orElse(""));
+		props.put(Property.NettyClient.SERVER_APP_NAME, serverAppName.orElse(""));
 
 		return createConfiguration(io.blesmol.netty.api.Configuration.NETTY_CLIENT_PID, props);
 	}

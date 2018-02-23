@@ -28,7 +28,7 @@ public interface Property {
 	
 	interface NettyClient extends HandlerConfig {
 		String CHANNEL = "channel";
-		String CHANNEL_ID = "channelId";
+		String SERVER_APP_NAME = "serverAppName";
 		String OPTION_AUTO_READ = "optionAutoRead";
 	}
 
