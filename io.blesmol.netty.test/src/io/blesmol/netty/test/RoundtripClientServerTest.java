@@ -74,7 +74,7 @@ public class RoundtripClientServerTest {
 		configUtil.deleteConfigurationPids(configPids);
 	}
 
-	static class LatchTestServerHandler extends TestServerHandler implements LatchChannelHandler {
+	public static class LatchTestServerHandler extends TestServerHandler implements LatchChannelHandler {
 		CountDownLatch latch = null;
 
 		@Override
@@ -92,7 +92,7 @@ public class RoundtripClientServerTest {
 
 	}
 
-	static class LatchTestClientHandler extends TestClientHandler implements LatchChannelHandler {
+	public static class LatchTestClientHandler extends TestClientHandler implements LatchChannelHandler {
 
 		CountDownLatch latch = null;
 
