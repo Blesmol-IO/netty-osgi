@@ -186,11 +186,11 @@ public class RoundtripClientServerTest {
 
 	}
 
-	static interface LatchChannelHandler extends ChannelHandler {
+	public static interface LatchChannelHandler extends ChannelHandler {
 		void setLatch(CountDownLatch latch);
 	}
 
-	static class RoundtripTestChannelHandlerFactory extends TestChannelHandlerFactory {
+	public static class RoundtripTestChannelHandlerFactory extends TestChannelHandlerFactory {
 
 		private final CountDownLatch latch;
 
