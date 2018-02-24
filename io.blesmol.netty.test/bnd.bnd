@@ -46,7 +46,6 @@ javac.target: 1.8
 	org.apache.felix.scr;version='[2.0.14,2.0.15)'
 
 Bundle-Version: 0.1.0.${tstamp}
-Private-Package: io.blesmol.netty.provider
 
 # Needed for Mockito's mocking to work
 -runsystempackages.objenesis: sun.misc,sun.reflect
@@ -63,3 +62,4 @@ Private-Package: io.blesmol.netty.provider
 	osgi.identity;filter:='(&(osgi.identity=org.apache.felix.gogo.runtime)(version>=1.0.10))',\
 	osgi.identity;filter:='(osgi.identity=io.blesmol.netty.provider)'
 -runee: JavaSE-1.8
+Export-Package: io.blesmol.netty.test

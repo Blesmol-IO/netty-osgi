@@ -1,4 +1,4 @@
-package io.blesmol.netty.provider;
+package io.blesmol.netty.test;
 
 import static org.junit.Assert.assertTrue;
 
@@ -25,9 +25,9 @@ import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
 
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.provider.TestUtils.TestChannelHandlerFactory;
-import io.blesmol.netty.provider.TestUtils.TestClientHandler;
-import io.blesmol.netty.provider.TestUtils.TestServerHandler;
+import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
+import io.blesmol.netty.test.TestUtils.TestClientHandler;
+import io.blesmol.netty.test.TestUtils.TestServerHandler;
 import io.netty.channel.ChannelHandler;
 
 @RunWith(MockitoJUnitRunner.class)

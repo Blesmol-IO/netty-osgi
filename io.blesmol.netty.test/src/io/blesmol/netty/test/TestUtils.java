@@ -1,4 +1,4 @@
-package io.blesmol.netty.provider;
+package io.blesmol.netty.test;
 
 import java.util.Dictionary;
 import java.util.Map;

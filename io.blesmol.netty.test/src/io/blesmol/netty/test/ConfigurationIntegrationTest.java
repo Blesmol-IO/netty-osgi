@@ -1,4 +1,4 @@
-package io.blesmol.netty.provider;
+package io.blesmol.netty.test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;

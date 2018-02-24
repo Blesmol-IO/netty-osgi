@@ -1,4 +1,4 @@
-package io.blesmol.netty.provider;
+package io.blesmol.netty.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -30,7 +30,7 @@ import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.Property;
-import io.blesmol.netty.provider.TestUtils.TestChannelHandlerFactory;
+import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
