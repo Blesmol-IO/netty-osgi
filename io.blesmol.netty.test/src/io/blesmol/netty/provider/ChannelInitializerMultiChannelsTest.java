@@ -47,7 +47,7 @@ public class ChannelInitializerMultiChannelsTest {
 	private final static int port = 0; // ephemeral
 	private static Configuration initializerConfig;
 
-	private static final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class)
+	private static final BundleContext context = FrameworkUtil.getBundle(ChannelInitializerMultiChannelsTest.class)
 			.getBundleContext();
 	private static ConfigurationUtil configUtil;
 	private static ConfigurationAdmin admin;

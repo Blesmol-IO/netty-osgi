@@ -38,7 +38,7 @@ import io.netty.channel.ChannelHandlerContext;
 @RunWith(MockitoJUnitRunner.class)
 public class RoundtripClientServerTest {
 
-	final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class).getBundleContext();
+	final BundleContext context = FrameworkUtil.getBundle(RoundtripClientServerTest.class).getBundleContext();
 
 	private ConfigurationUtil configUtil;
 

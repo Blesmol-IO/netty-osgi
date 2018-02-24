@@ -38,7 +38,7 @@ public class OsgiChannelHandlerProviderStressTest {
 	ConfigurationUtil util;
 	Configuration dynamicHandlerConfig;
 
-	private final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class)
+	private final BundleContext context = FrameworkUtil.getBundle(OsgiChannelHandlerProviderStressTest.class)
 			.getBundleContext();
 
 	private OsgiChannelHandler dynamicHandler;

@@ -39,7 +39,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 @RunWith(MockitoJUnitRunner.class)
 public class ModifiedChannelHandlerTest {
 
-	private static final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class)
+	private static final BundleContext context = FrameworkUtil.getBundle(ModifiedChannelHandlerTest.class)
 			.getBundleContext();
 
 	private static ConfigurationUtil configUtil;

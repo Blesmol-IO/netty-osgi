@@ -33,7 +33,7 @@ import io.netty.channel.ChannelHandler;
 @RunWith(MockitoJUnitRunner.class)
 public class ExtraPropertiesTest {
 
-	final BundleContext context = FrameworkUtil.getBundle(ConfigurationIntegrationTest.class).getBundleContext();
+	final BundleContext context = FrameworkUtil.getBundle(ExtraPropertiesTest.class).getBundleContext();
 
 	private ConfigurationUtil configUtil;
 
