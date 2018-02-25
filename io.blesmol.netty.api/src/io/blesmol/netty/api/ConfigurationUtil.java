@@ -28,6 +28,10 @@ public interface ConfigurationUtil {
 	String createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
 
+	String createBootstrapProvider(String appName, String hostname, int port, Optional<String> serverAppName) throws Exception;
+	
+	String createServerBootstrapProvider(String appName, String hostname, int port) throws Exception;
+	
 	void deleteConfigurationPids(Collection<String> pids) throws Exception;
 
 	Dictionary<String, Object> toChannelHandlerProps(String appName, String handlerName, String channelId,

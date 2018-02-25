@@ -89,4 +89,28 @@ public interface Configuration {
 		
 		String[] handlerNames();
 	}
+	
+	String BOOTSTRAP_PID = "io.netty.bootstrap.Bootstrap";
+	
+	@interface Bootstrap {
+		String appName();
+
+		String inetHost();
+
+		int inetPort();
+		
+		// default empty
+		String serverAppName() default "";
+		
+	}
+	
+	String SERVER_BOOTSTRAP_PID = "io.netty.bootstrap.ServerBootstrap";
+	
+	@interface ServerBootstrap {
+		String appName();
+
+		String inetHost();
+
+		int inetPort();
+	}
 }

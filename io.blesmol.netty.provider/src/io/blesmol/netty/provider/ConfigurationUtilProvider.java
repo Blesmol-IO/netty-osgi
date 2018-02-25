@@ -69,6 +69,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
 
 		final List<String> results = new ArrayList<>();
+		results.add(createServerBootstrapProvider(appName, hostname, port));
 		results.add(createEventLoopGroup(appName, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP));
 		results.add(createEventLoopGroup(appName, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP));
 		results.add(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
@@ -82,6 +83,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName) throws Exception {
 
 		final List<String> results = new ArrayList<>();
+		results.add(createBootstrapProvider(appName, hostname, port, serverAppName));
 		results.add(createEventLoopGroup(appName, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
 		results.add(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
 		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties, serverAppName));
@@ -160,7 +162,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				Property.ChannelInitializer.INET_PORT, port,
 				listFilter(Property.ChannelInitializer.FACTORY_PIDS, factoryPids),
 				listFilter(Property.ChannelInitializer.HANDLER_NAMES, handlerNames));
-		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
+		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event group at the application level currently
 		// If the server app name is present, use that instead of this app name, so as to chain off the
@@ -169,6 +171,14 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				Property.EventLoopGroup.GROUP_NAME, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
 
+		// Bootstrap target, using optional server app name too
+		String bootstrapTemplate = serverAppName.isPresent() ? "(&(%s=%s)(%s=%s)(%s=%d))" : "(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))";
+		// String.format ignores extra arguments
+		String bootstrapTarget = String.format(bootstrapTemplate,
+				Property.Bootstrap.APP_NAME, appName, Property.Bootstrap.INET_HOST, hostname,
+				Property.Bootstrap.INET_PORT, port, Property.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
+		props.put(ReferenceName.NettyClient.BOOTSTRAP_TARGET, bootstrapTarget);
+		
 		props.put(Property.NettyClient.INET_HOST, hostname);
 		props.put(Property.NettyClient.INET_PORT, port);
 		props.put(Property.NettyClient.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
@@ -178,6 +188,25 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		return createConfiguration(io.blesmol.netty.api.Configuration.NETTY_CLIENT_PID, props);
 	}
 
+	@Override
+	public String createServerBootstrapProvider(String appName, String hostname, int port) throws Exception {
+		final Hashtable<String, Object> props = new Hashtable<>();
+		props.put(Property.ServerBootstrap.APP_NAME, appName);
+		props.put(Property.ServerBootstrap.INET_HOST, hostname);
+		props.put(Property.ServerBootstrap.INET_PORT, port);
+		return createConfiguration(io.blesmol.netty.api.Configuration.SERVER_BOOTSTRAP_PID, props);
+	}
+	
+	@Override
+	public String createBootstrapProvider(String appName, String hostname, int port, Optional<String> serverAppName) throws Exception {
+		final Hashtable<String, Object> props = new Hashtable<>();
+		props.put(Property.Bootstrap.APP_NAME, appName);
+		props.put(Property.Bootstrap.INET_HOST, hostname);
+		props.put(Property.Bootstrap.INET_PORT, port);
+		props.put(Property.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
+		return createConfiguration(io.blesmol.netty.api.Configuration.BOOTSTRAP_PID, props);
+	}
+	
 	private String listFilter(String propertyName, List<String> property) {
 		return property.stream().map(s -> String.format("(%s=%s)", propertyName, s.toString()))
 				.collect(Collectors.joining());

@@ -9,7 +9,6 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.ConfigurationPolicy;
 import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceScope;
 import org.osgi.util.promise.Deferred;
 import org.osgi.util.promise.Promise;
 
@@ -35,7 +34,7 @@ public class NettyServerProvider implements NettyServer {
 
 	private final Deferred<ChannelFuture> channelFutureDeferred = new Deferred<>();
 
-	@Reference(scope = ReferenceScope.PROTOTYPE)
+	@Reference(name = ReferenceName.NettyServer.SERVER_BOOTSTRAP)
 	ServerBootstrap server;
 
 	@Reference(name = ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP)

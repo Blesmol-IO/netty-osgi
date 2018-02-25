@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.osgi.framework.Constants;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -37,6 +38,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	private final Map<String, org.osgi.service.cm.Configuration> configurations = new ConcurrentHashMap<>();
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 	private volatile Optional<Map<String, Object>> extraProperties;
+	private final Map<String, Object> properties = new ConcurrentHashMap<>();
 
 	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE, name = ReferenceName.ChannelInitializer.CHANNEL_HANDLERS)
 	void setOsgiChannelHandler(OsgiChannelHandler dynamicHandler, Map<String, Object> properties) {
@@ -110,6 +112,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	@Activate
 	void activate(Configuration.ChannelInitializer config, Map<String, Object> props) {
 		this.config = config;
+		this.properties.putAll(props);
 		extraProperties = configUtil.toOptionalExtraProperties(props);
 	}
 
@@ -143,5 +146,11 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 		System.out.println("Initialized channel handler " + this);
 		
 	}
+
+	@Override
+	public String toString() {
+		return String.format("ChannelInitializerProvider [service.pid=%s]", properties.get(Constants.SERVICE_PID));
+	}
+
 
 }

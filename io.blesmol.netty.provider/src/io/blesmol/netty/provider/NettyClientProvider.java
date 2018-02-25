@@ -25,13 +25,13 @@ public class NettyClientProvider implements NettyClient {
 
 	private final Deferred<ChannelFuture> deferredChannelFuture = new Deferred<>();
 
-	@Reference
+	@Reference(name = ReferenceName.NettyClient.BOOTSTRAP)
 	Bootstrap bootstrap;
 
 	@Reference(name = ReferenceName.NettyClient.EVENT_LOOP_GROUP)
 	EventLoopGroup group;
 
-	@Reference
+	@Reference(name = ReferenceName.NettyClient.CHANNEL_INITIALIZER)
 	ChannelInitializer<Channel> channelInitializer;
 
 	@Activate

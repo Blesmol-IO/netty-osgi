@@ -21,6 +21,8 @@ public interface ReferenceName {
 
 
 	interface NettyClient {
+		String BOOTSTRAP = "bootstrap";
+		String BOOTSTRAP_TARGET = BOOTSTRAP + DOT_TARGET;
 		String CHANNEL_INITIALIZER = "channelInitializer";
 		String CHANNEL_INITIALIZER_TARGET = CHANNEL_INITIALIZER + DOT_TARGET;
 		// Use same name as netty server, so both can match if desired
@@ -31,6 +33,8 @@ public interface ReferenceName {
 	}
 
 	interface NettyServer {
+		String SERVER_BOOTSTRAP = "serverBootstrap";
+		String SERVER_BOOTSTRAP_TARGET = SERVER_BOOTSTRAP + DOT_TARGET;
 		String CHANNEL_INITIALIZER = "channelInitializer";
 		String CHANNEL_INITIALIZER_TARGET = CHANNEL_INITIALIZER + DOT_TARGET;
 		String WORKER_EVENT_LOOP_GROUP = "workerGroup";
