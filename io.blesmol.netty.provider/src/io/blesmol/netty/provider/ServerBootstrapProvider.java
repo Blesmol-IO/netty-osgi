@@ -6,7 +6,7 @@ import org.osgi.service.component.annotations.ConfigurationPolicy;
 import io.blesmol.netty.api.Configuration;
 import io.netty.bootstrap.ServerBootstrap;
 
-@Component(configurationPid = Configuration.BOOTSTRAP_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = ServerBootstrap.class)
+@Component(configurationPid = Configuration.SERVER_BOOTSTRAP_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = ServerBootstrap.class)
 public class ServerBootstrapProvider extends ServerBootstrap {
 
 }
