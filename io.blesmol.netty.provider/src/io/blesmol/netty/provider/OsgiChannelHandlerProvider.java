@@ -1,7 +1,6 @@
 package io.blesmol.netty.provider;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -31,11 +30,13 @@ import org.osgi.util.promise.Promises;
 
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
+import io.blesmol.netty.api.EventExecutorGroupProvider;
 import io.blesmol.netty.api.OsgiChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.util.concurrent.EventExecutorGroup;
 
 @Component(configurationPid = Configuration.OSGI_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
 public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter implements OsgiChannelHandler {
@@ -358,16 +359,21 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 						final int idx = keys.indexOf(it);
 						final String handlerName = it.handlerName;
 						try {
+							// a null event executor group is the same as using this channel's event loop
+							EventExecutorGroup eventExecutorGroup = null;
+							if (handler instanceof EventExecutorGroupProvider) {
+								eventExecutorGroup = ((EventExecutorGroupProvider)handler).getEventExecutorGroup();
+							}
 							// If this is the first one, add after this dynamic handler
 							if (idx == 0) {
-								context.pipeline().addAfter(OsgiChannelHandler.HANDLER_NAME, handlerName, handler);
+								context.pipeline().addAfter(eventExecutorGroup, OsgiChannelHandler.HANDLER_NAME, handlerName, handler);
 								System.out.println(
 										String.format("Added handler '%s' after dynamic handler", handlerName));
 							}
 							// Else, use the previously added (just now or before) handler as a guide
 							else {
 								String priorHandlerName = keys.get(idx - 1).handlerName;
-								context.pipeline().addAfter(priorHandlerName, handlerName, handler);
+								context.pipeline().addAfter(eventExecutorGroup, priorHandlerName, handlerName, handler);
 								System.out.println(
 										String.format("Added handler '%s' after '%s'", handlerName, priorHandlerName));
 							}
