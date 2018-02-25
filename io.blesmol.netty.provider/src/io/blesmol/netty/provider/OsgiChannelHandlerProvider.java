@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.osgi.framework.Constants;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -42,6 +43,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	// This handler's context
 	private final Deferred<ChannelHandlerContext> deferredContext = new Deferred<>();
 	private final Promise<ChannelHandlerContext> promisedContext = deferredContext.getPromise();
+
+	private final Map<String, Object> properties = new ConcurrentHashMap<>();
 
 	// Extra handler properties
 	private volatile Optional<Map<String, Object>> extraProperties;
@@ -150,6 +153,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 	void activate(Configuration.OsgiChannelHandler config, Map<String, Object> props) {
 
 		System.out.println("Activated dynamic handler properties: " + props);
+		this.properties.putAll(props);
 
 		// Update extra properties
 		extraProperties = configUtil.toOptionalExtraProperties(props);
@@ -165,11 +169,13 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 	}
 
-
 	@Modified
 	void modified(Configuration.OsgiChannelHandler config, Map<String, Object> props) {
 
 		assert config.factoryPids().length == config.handlerNames().length;
+
+		this.properties.clear();
+		this.properties.putAll(props);
 
 		// Update extra properties
 		extraProperties = configUtil.toOptionalExtraProperties(props);
@@ -309,7 +315,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 						// Fail the channel handler defer if its expected configuration cannot be
 						// updated
 						try {
-							c.update(configUtil.toChannelHandlerProps(priorConfig.appName(), handlerName, channelId, extraProperties));
+							c.update(configUtil.toChannelHandlerProps(priorConfig.appName(), handlerName, channelId,
+									extraProperties));
 						} catch (Exception e) {
 							e.printStackTrace();
 							deferred.fail(e);
@@ -376,7 +383,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 				});
 
 				// Now allow reading of channel
-				System.out.println(String.format("Enabling auto read on channel id %s", context.channel().id().asLongText()));
+				System.out.println(
+						String.format("Enabling auto read on channel id %s", context.channel().id().asLongText()));
 				context.channel().config().setAutoRead(true);
 				// and resolve
 				result.resolveWith(Promises.all(promises));
@@ -437,44 +445,46 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 	@Override
 	public void handlerAdded(final ChannelHandlerContext ctx) throws Exception {
+		System.out.println(this + " added");
 		deferredContext.resolve(ctx);
 	}
 
 	// TODO: close
 	@Override
 	public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+		System.out.println(this + " removed");
 	}
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		System.out.println("Dynamic handler read");
+		System.out.println(this + " read");
 		super.channelRead(ctx, msg);
 	}
-	
+
 	@Override
 	public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-		System.out.println("Dynamic handler read complete");
+		System.out.println(this + " read complete");
 		super.channelReadComplete(ctx);
 	}
 
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-		System.out.println("Dynamic handler user event triggered");
+		System.out.println(this + " user event triggered");
 		super.userEventTriggered(ctx, evt);
 	}
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		System.out.println(String.format("Dynamic handler for channel id '%s' is active", priorConfig.channelId()));
+		System.out.println(this + " activte");
 		super.channelActive(ctx);
 	}
-	
+
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		System.out.println(String.format("Dynamic handler for channel id '%s' is active", priorConfig.channelId()));
+		System.out.println(this + " inactive");
 		super.channelInactive(ctx);
 	}
-	
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -491,10 +501,7 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 
 	@Override
 	public String toString() {
-		return String.format(
-				"OsgiChannelHandlerProvider [appName=%s, channelId=%s, factoryPids=%s, handlerNames=%s, inetHost=%s, inetPort=%d]",
-				priorConfig.appName(), priorConfig.channelId(), Arrays.toString(priorConfig.factoryPids()),
-				Arrays.toString(priorConfig.handlerNames()), priorConfig.inetHost(), priorConfig.inetPort());
+		return String.format("Dynamic handler [%s]", this.properties.get(Constants.SERVICE_PID));
 	}
 
 	private static class Key {
