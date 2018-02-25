@@ -129,6 +129,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				Property.EventLoopGroup.GROUP_NAME, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP_TARGET, workerGroupTarget);
 
+		// Server bootstrap target
+		String serverBootstrapTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d))",
+				Property.ServerBootstrap.APP_NAME, appName, Property.ServerBootstrap.INET_HOST, hostname,
+				Property.ServerBootstrap.INET_PORT, port);
+		props.put(ReferenceName.NettyServer.SERVER_BOOTSTRAP_TARGET, serverBootstrapTarget);
+
 		props.put(Property.NettyServer.INET_HOST, hostname);
 		props.put(Property.NettyServer.INET_PORT, port);
 		props.put(Property.NettyServer.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
