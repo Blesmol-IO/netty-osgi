@@ -30,7 +30,7 @@ import org.osgi.util.promise.Promises;
 
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.api.EventExecutorGroupProvider;
+import io.blesmol.netty.api.EventExecutorGroupHandler;
 import io.blesmol.netty.api.OsgiChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.netty.channel.ChannelHandler;
@@ -361,8 +361,8 @@ public class OsgiChannelHandlerProvider extends ChannelInboundHandlerAdapter imp
 						try {
 							// a null event executor group is the same as using this channel's event loop
 							EventExecutorGroup eventExecutorGroup = null;
-							if (handler instanceof EventExecutorGroupProvider) {
-								eventExecutorGroup = ((EventExecutorGroupProvider)handler).getEventExecutorGroup();
+							if (handler instanceof EventExecutorGroupHandler) {
+								eventExecutorGroup = ((EventExecutorGroupHandler)handler).getEventExecutorGroup();
 							}
 							// If this is the first one, add after this dynamic handler
 							if (idx == 0) {

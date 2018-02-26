@@ -11,8 +11,14 @@ public interface Property {
 	String EXTRA_PROPERTIES = "extraProperties";	
 	String EXTRA_PREFIX = "extraProperty.";
 	
-	interface EventLoopGroup extends Property {
+	interface EventLoopGroup {
+		String APP_NAME = Property.APP_NAME;
 		String GROUP_NAME = "groupName";
+	}
+
+	interface EventExecutorGroup {
+		String APP_NAME = Property.APP_NAME;
+		String GROUP_NAME = EventLoopGroup.GROUP_NAME;
 	}
 	
 	interface HandlerConfig extends Property {

@@ -21,6 +21,14 @@ public interface Configuration {
 		String groupName();
 	}
 
+	String EVENT_EXECUTOR_GROUP = "io.netty.util.concurrent.EventExecutorGroup";
+
+	@interface EventExecutorGroup {
+		String appName();
+
+		String groupName();
+	}
+
 	String NETTY_CLIENT_PID = "io.blesmol.netty.api.NettyClient";
 
 	@interface NettyClient {
@@ -29,16 +37,16 @@ public interface Configuration {
 		String inetHost();
 
 		int inetPort();
-		
+
 		String[] factoryPids();
-		
+
 		String[] handlerNames();
 
 		Class<? extends Channel> channel() default NioSocketChannel.class;
 
 		// Disable auto read until handlers are ready
 		boolean optionAutoRead() default false;
-		
+
 		// Optional server app name
 		String serverAppName() default "";
 	}
@@ -53,7 +61,7 @@ public interface Configuration {
 		int inetPort();
 
 		String[] factoryPids();
-		
+
 		String[] handlerNames();
 
 		Class<? extends ServerChannel> channel() default NioServerSocketChannel.class;
@@ -71,7 +79,7 @@ public interface Configuration {
 		int inetPort();
 
 		String[] factoryPids();
-		
+
 		String[] handlerNames();
 
 	}
@@ -86,26 +94,26 @@ public interface Configuration {
 		int inetPort();
 
 		String[] factoryPids();
-		
+
 		String[] handlerNames();
 	}
-	
+
 	String BOOTSTRAP_PID = "io.netty.bootstrap.Bootstrap";
-	
+
 	@interface Bootstrap {
 		String appName();
 
 		String inetHost();
 
 		int inetPort();
-		
+
 		// default empty
 		String serverAppName() default "";
-		
+
 	}
-	
+
 	String SERVER_BOOTSTRAP_PID = "io.netty.bootstrap.ServerBootstrap";
-	
+
 	@interface ServerBootstrap {
 		String appName();
 

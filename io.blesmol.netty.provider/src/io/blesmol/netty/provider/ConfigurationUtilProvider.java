@@ -99,6 +99,14 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
+	public String createEventExecutorGroup(String appName, String groupName) throws Exception {
+		final Hashtable<String, Object> props = new Hashtable<>();
+		props.put(Property.EventExecutorGroup.APP_NAME, appName);
+		props.put(Property.EventExecutorGroup.GROUP_NAME, groupName);
+		return createConfiguration(io.blesmol.netty.api.Configuration.EVENT_EXECUTOR_GROUP, props);
+	}
+
+	@Override
 	public String createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
 

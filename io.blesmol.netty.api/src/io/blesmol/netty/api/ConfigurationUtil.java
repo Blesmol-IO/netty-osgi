@@ -25,6 +25,8 @@ public interface ConfigurationUtil {
 
 	String createEventLoopGroup(String appName, String groupName) throws Exception;
 
+	String createEventExecutorGroup(String appName, String groupName) throws Exception;
+
 	String createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
 
