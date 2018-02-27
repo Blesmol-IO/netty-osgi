@@ -30,7 +30,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.util.concurrent.EventExecutorGroup;
 
-@Component(service = ChannelInitializer.class, configurationPid = Configuration.CHANNEL_INITIALIZER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
+@Component(service = ChannelInitializer.class, configurationPid = Configuration.CHANNEL_INITIALIZER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, immediate = true)
 public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 	// Cross-thread access

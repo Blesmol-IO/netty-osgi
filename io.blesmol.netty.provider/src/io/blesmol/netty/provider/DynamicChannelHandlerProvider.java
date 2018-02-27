@@ -40,7 +40,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.concurrent.EventExecutorGroup;
 
-@Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class)
+@Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class, immediate = true)
 public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter implements DynamicChannelHandler {
 
 	// This handler's context
@@ -52,10 +52,13 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	// Extra handler properties
 	private volatile Optional<Map<String, Object>> extraProperties;
 
-	// The outbound deferred is resolved when the outbound sends us an event
-	// Both are updated when this method is modified
-	private volatile Deferred<Void> outboundHandlerDeferred = new Deferred<Void>();
+	// The outbound deferred is resolved when the outbound sends us an event, first
+	// time only
+	// The promise is updated each time via a field updater
+	private final Deferred<DynamicHandlerEvents> outboundHandlerDeferred = new Deferred<DynamicHandlerEvents>();
 	private volatile Promise<?> outboundHandlerPromise = outboundHandlerDeferred.getPromise();
+	// private volatile Promise<?> outboundHandlerPromise = new
+	// Deferred<Void>().getPromise();
 
 	@SuppressWarnings("rawtypes")
 	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Promise> OUTBOUND_PROMISE = AtomicReferenceFieldUpdater
@@ -192,11 +195,12 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 		System.out.println("Modifying " + this);
 		// Since we're being modified, first update our promises
-		System.out.print("Resetting deferred. Old deferred was " + this.outboundHandlerDeferred);
-		final Deferred<Void> newOutboundHandlerDeferred = new Deferred<>();
-		OUTBOUND_DEFERRED.set(this, newOutboundHandlerDeferred);
-		OUTBOUND_PROMISE.set(this, newOutboundHandlerDeferred.getPromise());
-		System.out.println(". New deferred is " + this.outboundHandlerDeferred);
+		// System.out.print("Resetting deferred. Old deferred was " +
+		// this.outboundHandlerDeferred);
+		// final Deferred<Void> newOutboundHandlerDeferred = new Deferred<>();
+		// OUTBOUND_DEFERRED.set(this, newOutboundHandlerDeferred);
+		// OUTBOUND_PROMISE.set(this, newOutboundHandlerDeferred.getPromise());
+		// System.out.println(". New deferred is " + this.outboundHandlerDeferred);
 
 		// Update our properties
 		this.properties.clear();
@@ -298,7 +302,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 							// This happens-before updating the configuration
 							DynamicChannelHandlerProvider.this.configurations.put(it, deferred.getPromise());
 							deferred.resolve(configuration);
-							System.out.println(String.format("Created configuration for '%s:%s'", it.factoryPid, it.handlerName));
+							System.out.println(
+									String.format("Created configuration for '%s:%s'", it.factoryPid, it.handlerName));
 						} catch (Exception e) {
 							e.printStackTrace();
 							deferred.fail(e);
@@ -347,7 +352,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 						try {
 							c.update(configUtil.toChannelHandlerProps(priorConfig.appName(), handlerName, channelId,
 									extraProperties));
-							System.out.println(String.format("Updated configuration for '%s:%s'", key.factoryPid, handlerName));
+							System.out.println(
+									String.format("Updated configuration for '%s:%s'", key.factoryPid, handlerName));
 						} catch (Exception e) {
 							e.printStackTrace();
 							deferred.fail(e);
@@ -539,16 +545,22 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 		// If this is a promise, see if it's from the outbound communicating to us
-		Deferred<Void> outboundHandlerDeferred = this.outboundHandlerDeferred;
-		System.out.println("Outbound deferred in user event triggered: " + outboundHandlerDeferred);
+		// Deferred<Void> outboundHandlerDeferred = this.outboundHandlerDeferred;
+		// System.out.println("Outbound deferred in user event triggered: " +
+		// outboundHandlerDeferred);
 		if (evt instanceof Promise<?>) {
 			try {
 				@SuppressWarnings("unchecked")
 				Promise<DynamicHandlerEvents> eventPromise = (Promise<DynamicHandlerEvents>) evt;
 				switch (eventPromise.getValue()) {
 				case LAST_HANDLER_ADDED:
-					System.out.println("Received outbound promise via user event, resolving deferred");
-					outboundHandlerDeferred.resolve(null);
+					// First resolve the deferred, which resolves any outstanding promise callbacks
+					outboundHandlerDeferred.resolveWith(eventPromise);
+					// Then update the deferred so it is ready to resolve the next time around
+					final Deferred<Void> newOutboundHandlerDeferred = new Deferred<>();
+					OUTBOUND_DEFERRED.set(this, newOutboundHandlerDeferred);
+					// And update the promise with the newly updated deferred promise
+					OUTBOUND_PROMISE.set(this, newOutboundHandlerDeferred.getPromise());
 					return;
 				default:
 					break;
