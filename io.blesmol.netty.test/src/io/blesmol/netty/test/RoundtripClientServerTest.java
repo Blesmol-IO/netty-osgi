@@ -72,6 +72,7 @@ public class RoundtripClientServerTest {
 	@After
 	public void after() throws Exception {
 		configUtil.deleteConfigurationPids(configPids);
+		configUtil = null;
 	}
 
 	public static class LatchTestServerHandler extends TestServerHandler implements LatchChannelHandler {

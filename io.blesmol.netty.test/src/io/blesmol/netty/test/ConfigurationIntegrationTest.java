@@ -15,10 +15,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.osgi.framework.BundleContext;
-import org.osgi.framework.Constants;
-import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkUtil;
-import org.osgi.util.tracker.ServiceTracker;
+import org.osgi.framework.ServiceReference;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyServer;
@@ -33,28 +31,9 @@ public class ConfigurationIntegrationTest {
 
 	ConfigurationUtil configUtil;
 
-	// TODO: don't leaks service trackers
-	<T> T getService(Class<T> clazz, long timeout) throws Exception {
-		return getService(clazz, timeout, "");
-	}
-
-	<T> T getService(Class<T> clazz, long timeout, String appName) throws Exception {
-		ServiceTracker<T, T> st;
-		if (appName != null && !"".equals(appName)) {
-			Filter filter = context.createFilter(
-					String.format("(&(%s=%s)(appName=%s))", Constants.OBJECTCLASS, clazz.getName(), appName));
-			st = new ServiceTracker<>(context, filter, null);
-
-		} else {
-			st = new ServiceTracker<>(context, clazz, null);
-		}
-		st.open();
-		return st.waitForService(timeout);
-	}
-
 	@Before
 	public void before() throws Exception {
-		configUtil = getService(ConfigurationUtil.class, 700);
+		configUtil = TestUtils.getService(context, ConfigurationUtil.class, 700);
 	}
 
 	@After
@@ -75,7 +54,9 @@ public class ConfigurationIntegrationTest {
 		List<String> pids = configUtil.createNettyServer(appName, hostname, port, factoryPids, handlerNames, Optional.empty());
 
 		// Verify service creation and pipeline being established
-		NettyServer server = getService(NettyServer.class, 3000, appName);
+//		ServiceReference<NettyServer> reference = TestUtils.getTracker(context, NettyServer.class).getServiceReference();
+//		NettyServer server =  context.getService(reference); // TestUtils.getService(context, NettyServer.class, 3000, appName);
+		NettyServer server = TestUtils.getService(context, NettyServer.class, 3000);
 		assertNotNull(server);
 		assertNotNull(server.promise());
 
@@ -91,6 +72,7 @@ public class ConfigurationIntegrationTest {
 		// Delete the config and wait so the service manager factory can
 		// unregister the service
 		configUtil.deleteConfigurationPids(pids);
+//		context.ungetService(reference);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 	}
 

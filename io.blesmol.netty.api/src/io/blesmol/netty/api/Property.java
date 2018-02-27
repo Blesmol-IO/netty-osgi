@@ -38,13 +38,13 @@ public interface Property {
 		String OPTION_AUTO_READ = "optionAutoRead";
 	}
 
-	interface OsgiChannelHandler extends HandlerConfig {
+	interface DynamicChannelHandler extends HandlerConfig {
 		String CHANNEL_ID = "channelId";
 	}
 
 	interface ChannelHandler {
 		String APP_NAME = Property.APP_NAME;
-		String CHANNEL_ID = OsgiChannelHandler.CHANNEL_ID;
+		String CHANNEL_ID = DynamicChannelHandler.CHANNEL_ID;
 		String HANDLER_NAME = "handlerName";
 	}
 

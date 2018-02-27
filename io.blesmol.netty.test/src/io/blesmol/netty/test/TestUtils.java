@@ -105,9 +105,14 @@ public class TestUtils {
 
 		@Override
 		public void deleted(String pid) {
-			registrations.get(pid).unregister();
-			if (deletedLatch != null) {
-				deletedLatch.countDown();
+			try {
+				registrations.get(pid).unregister();
+				if (deletedLatch != null) {
+					deletedLatch.countDown();
+				}
+			}
+			catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
 

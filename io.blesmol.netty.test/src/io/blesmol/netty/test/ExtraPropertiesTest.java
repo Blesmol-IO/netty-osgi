@@ -68,6 +68,7 @@ public class ExtraPropertiesTest {
 	@After
 	public void after() throws Exception {
 		configUtil.deleteConfigurationPids(configPids);
+		configUtil = null;
 	}
 
 

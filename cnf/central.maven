@@ -21,6 +21,8 @@ io.netty:netty-transport:jar:4.1.20.Final
 io.netty:netty-transport:jar:sources:4.1.20.Final
 io.netty:netty-resolver:jar:4.1.20.Final
 io.netty:netty-codec:jar:4.1.20.Final
+io.netty:netty-codec:jar:sources:4.1.20.Final
 io.netty:netty-buffer:jar:4.1.20.Final
+io.netty:netty-buffer:jar:sources:4.1.20.Final
 net.bytebuddy:byte-buddy:jar:1.7.10
 net.bytebuddy:byte-buddy-agent:jar:1.7.10

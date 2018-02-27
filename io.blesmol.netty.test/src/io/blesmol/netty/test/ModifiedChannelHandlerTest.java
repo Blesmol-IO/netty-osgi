@@ -29,7 +29,7 @@ import org.osgi.service.cm.ManagedServiceFactory;
 import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.api.OsgiChannelHandler;
+import io.blesmol.netty.api.DynamicChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.test.TestUtils.SkeletonChannelHandler;
 import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
@@ -45,9 +45,9 @@ public class ModifiedChannelHandlerTest {
 	private static ConfigurationUtil configUtil;
 	private static ConfigurationAdmin admin;
 	private static Configuration handlerConfig;
-	private static OsgiChannelHandler dynamicHandler;
+	private static DynamicChannelHandler dynamicHandler;
 	private static List<ServiceTracker<?, ?>> trackers = new CopyOnWriteArrayList<>();
-	private static ServiceTracker<OsgiChannelHandler, OsgiChannelHandler> handlerTracker;
+	private static ServiceTracker<DynamicChannelHandler, DynamicChannelHandler> handlerTracker;
 	private static TestChannelHandlerFactory factory;
 	private static ServiceRegistration<ManagedServiceFactory> factoryRegistration;
 
@@ -79,14 +79,14 @@ public class ModifiedChannelHandlerTest {
 		trackers.add(utilTracker);
 		configUtil = utilTracker.waitForService(250);
 
-		handlerConfig = admin.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID,
+		handlerConfig = admin.createFactoryConfiguration(io.blesmol.netty.api.Configuration.DYNAMIC_CHANNEL_HANDLER_PID,
 				"?");
 
 		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s))", Constants.OBJECTCLASS,
-				OsgiChannelHandler.class.getName(), Property.OsgiChannelHandler.CHANNEL_ID, channelId,
-				Property.OsgiChannelHandler.APP_NAME, appName);
+				DynamicChannelHandler.class.getName(), Property.DynamicChannelHandler.CHANNEL_ID, channelId,
+				Property.DynamicChannelHandler.APP_NAME, appName);
 
-		handlerTracker = TestUtils.getTracker(context, OsgiChannelHandler.class, filter);
+		handlerTracker = TestUtils.getTracker(context, DynamicChannelHandler.class, filter);
 		trackers.add(handlerTracker);
 
 		Hashtable<String, Object> props = new Hashtable<>();
@@ -101,7 +101,7 @@ public class ModifiedChannelHandlerTest {
 		dynamicHandler = handlerTracker.waitForService(1000);
 		assertNotNull(dynamicHandler);
 		// Simulate channel initializer
-		ch.pipeline().addFirst(OsgiChannelHandler.HANDLER_NAME, dynamicHandler);
+		ch.pipeline().addFirst(DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
 
 	}
 
@@ -109,9 +109,9 @@ public class ModifiedChannelHandlerTest {
 	public static void afterClass() throws Exception {
 		trackers.forEach(t -> t.close());
 		admin = null;
-		configUtil = null;
-		handlerConfig = null;
 		factoryRegistration.unregister();
+		handlerConfig.delete();
+		configUtil = null;
 	}
 
 	@After
@@ -162,6 +162,7 @@ public class ModifiedChannelHandlerTest {
 		final int idx = pipelineNames.indexOf(handlerNames.get(0));
 
 		// Verify size is correct
+		// extra two: dynamicChannelHandler & tail context
 		assertEquals(pipelineNames.size(), 2 + handlerNames.size());
 
 		// Verify that each expected handler name is, as ordered, in the actual pipeline

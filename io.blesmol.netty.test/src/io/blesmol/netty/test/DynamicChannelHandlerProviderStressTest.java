@@ -1,8 +1,9 @@
 package io.blesmol.netty.test;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Dictionary;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Optional;
@@ -19,12 +20,11 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
-import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.cm.ManagedServiceFactory;
 
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.api.OsgiChannelHandler;
+import io.blesmol.netty.api.DynamicChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.test.TestUtils.SkeletonChannelHandler;
 import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
@@ -32,19 +32,18 @@ import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 @RunWith(MockitoJUnitRunner.class)
-public class OsgiChannelHandlerProviderStressTest {
+public class DynamicChannelHandlerProviderStressTest {
 
-	ConfigurationAdmin admin;
-	ConfigurationUtil util;
-	Configuration dynamicHandlerConfig;
+	ConfigurationUtil configUtil;
+	private List<String> configurationPids = new ArrayList<>();
 
-	private final BundleContext context = FrameworkUtil.getBundle(OsgiChannelHandlerProviderStressTest.class)
+	private final BundleContext context = FrameworkUtil.getBundle(DynamicChannelHandlerProviderStressTest.class)
 			.getBundleContext();
 
-	private OsgiChannelHandler dynamicHandler;
-	private final String appName = OsgiChannelHandlerProviderStressTest.class.getName();
+	private DynamicChannelHandler dynamicHandler;
+	private final String appName = DynamicChannelHandlerProviderStressTest.class.getName();
 	private final String hostname = "localhost";
-	private final String factoryPid = OsgiChannelHandlerProviderStressTest.class.getName();
+	private final String factoryPid = DynamicChannelHandlerProviderStressTest.class.getName();
 	private final int port = 0; // ephemeral
 	private final int count = 500;
 	private final String stressTestHandler = "stressTestHandler";
@@ -56,22 +55,17 @@ public class OsgiChannelHandlerProviderStressTest {
 	@Before
 	public void before() throws Exception {
 
-		admin = TestUtils.getService(context, ConfigurationAdmin.class, 250);
-		util =  TestUtils.getService(context, ConfigurationUtil.class, 250);
+		configUtil =  TestUtils.getService(context, ConfigurationUtil.class, 250);
 
-		dynamicHandlerConfig = admin
-				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, "?");
-
-		// Update the dynamic handler config
-		final Dictionary<String, Object> props = util.toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty());
-		dynamicHandlerConfig.update(props);
+		configurationPids.add(configUtil.createDynamicChannelHandlerConfig(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
 
 		String filter = String.format("(&(%s=%s)(%s=%s))",
 				//
-				Constants.OBJECTCLASS, OsgiChannelHandler.class.getName(),
-				Property.OsgiChannelHandler.CHANNEL_ID, channelId);
+				Constants.OBJECTCLASS, DynamicChannelHandler.class.getName(),
+				Property.DynamicChannelHandler.CHANNEL_ID, channelId);
 
-		dynamicHandler = TestUtils.getService(context, OsgiChannelHandler.class, 3000, filter);
+		dynamicHandler = TestUtils.getService(context, DynamicChannelHandler.class, 3000, filter);
+		assertNotNull(dynamicHandler);
 	}
 
 	@Test
@@ -80,7 +74,7 @@ public class OsgiChannelHandlerProviderStressTest {
 
 		// Add dynamic handler to channel.
 		// TODO: add 1000 channels and test here
-		ch.pipeline().addLast(OsgiChannelHandler.HANDLER_NAME, dynamicHandler);
+		ch.pipeline().addFirst(DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
 
 		// 
 		final CountDownLatch updatedLatch = new CountDownLatch(count);
@@ -103,12 +97,11 @@ public class OsgiChannelHandlerProviderStressTest {
 				Property.ChannelHandler.HANDLER_NAME, String.format("%s%s", stressTestHandler, count/200),
 				ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid
 		);
-		System.out.println("Got service");
-
+		// ignore return value, just using it to wait for service
 		TestUtils.getService(context, SkeletonChannelHandler.class, 5000, filter);
 
 		// Delete the config
-		dynamicHandlerConfig.delete();
+		configUtil.deleteConfigurationPids(configurationPids);
 		assertTrue(deletedLatch.await(10, TimeUnit.SECONDS));
 		sr.unregister();
 	}

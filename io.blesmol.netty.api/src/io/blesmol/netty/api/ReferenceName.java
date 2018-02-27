@@ -9,7 +9,7 @@ public interface ReferenceName {
 
 	String DOT_TARGET = ".target";
 
-	interface OsgiChannelHandler {
+	interface DynamicChannelHandler {
 		String CHANNEL_HANDLER = "channelHandler";
 		String CHANNEL_HANDLER_TARGET = CHANNEL_HANDLER + DOT_TARGET;
 	}
@@ -17,6 +17,8 @@ public interface ReferenceName {
 	interface ChannelInitializer {
 		String CHANNEL_HANDLERS = "channelHandlers";
 		String CHANNEL_HANDLERS_TARGET = CHANNEL_HANDLERS + DOT_TARGET;
+		String EVENT_EXECUTOR_GROUP = "eventExecutorGroup";
+		String EVENT_EXECUTOR_GROUP_TARGET = EVENT_EXECUTOR_GROUP + DOT_TARGET;
 	}
 
 

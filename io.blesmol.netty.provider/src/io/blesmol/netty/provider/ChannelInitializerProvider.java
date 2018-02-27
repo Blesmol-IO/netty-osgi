@@ -1,11 +1,12 @@
 package io.blesmol.netty.provider;
 
-import java.io.IOException;
-import java.util.Dictionary;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.osgi.framework.Constants;
 import org.osgi.service.cm.ConfigurationAdmin;
@@ -20,30 +21,34 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.api.OsgiChannelHandler;
+import io.blesmol.netty.api.DynamicChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.api.ReferenceName;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
+import io.netty.util.concurrent.EventExecutorGroup;
 
-@Component(service = ChannelInitializer.class,  configurationPid = Configuration.CHANNEL_INITIALIZER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
+@Component(service = ChannelInitializer.class, configurationPid = Configuration.CHANNEL_INITIALIZER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
 public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 	// Cross-thread access
 	private volatile Configuration.ChannelInitializer config;
 
 	private final AtomicBoolean deactivated = new AtomicBoolean(false);
-	private final Map<String, org.osgi.service.cm.Configuration> configurations = new ConcurrentHashMap<>();
+	private final Map<String, String> configurations = new ConcurrentHashMap<>();
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 	private volatile Optional<Map<String, Object>> extraProperties;
 	private final Map<String, Object> properties = new ConcurrentHashMap<>();
 
-	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE, name = ReferenceName.ChannelInitializer.CHANNEL_HANDLERS)
-	void setOsgiChannelHandler(OsgiChannelHandler dynamicHandler, Map<String, Object> properties) {
+	@Reference(name = ReferenceName.ChannelInitializer.EVENT_EXECUTOR_GROUP)
+	EventExecutorGroup eventExecutorGroup;
 
-		final String channelId = (String) properties.get(Property.OsgiChannelHandler.CHANNEL_ID);
+	@Reference(policy = ReferencePolicy.DYNAMIC, policyOption = ReferencePolicyOption.GREEDY, cardinality = ReferenceCardinality.MULTIPLE, name = ReferenceName.ChannelInitializer.CHANNEL_HANDLERS)
+	void setDynamicChannelHandler(DynamicChannelHandler dynamicHandler, Map<String, Object> properties) {
+
+		final String channelId = (String) properties.get(Property.DynamicChannelHandler.CHANNEL_ID);
 		if (channelId == null) {
 			// TODO: log
 			System.err.println(String.format("Ignoring dynamic handler '%s' with null channel ID, with properties\n%s",
@@ -59,13 +64,17 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 			return;
 		}
 
-		ch.pipeline().addFirst(OsgiChannelHandler.HANDLER_NAME, dynamicHandler);
-		// TODO: log trace
-		System.out.println(
-				String.format("Added dynamic handler '%s' to channel with ID '%s'.", dynamicHandler, channelId));
+		// Run the dynamic handler on a separate event executor group so as to catch
+		// all channel activity whilst the handler is being added (but not fully added).
+		// Refer to the implementation details in
+		// io.netty.channel.AbstractChannelHandlerContext.invokeHandler()
+		ch.pipeline().addFirst(eventExecutorGroup, DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
 
-		final org.osgi.service.cm.Configuration configuration = configurations.remove(channelId);
-		if (configuration == null) {
+		// TODO: log trace
+		System.out.println(String.format("Added '%s' to channel with ID '%s'.", dynamicHandler, channelId));
+
+		String configurationPid = configurations.remove(channelId);
+		if (configurationPid == null) {
 			// TODO: log debug
 			System.out
 					.println(String.format("No configuration with channel ID '%s' for handler '%s' and properties\n%s",
@@ -82,8 +91,8 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 					// TODO log trace
 					System.out.println(
 							String.format("Deleting the dynamic handler configuration for channel ID '%s'", channelId));
-					configuration.delete();
-				} catch (IllegalStateException | IOException e) {
+					configUtil.deleteConfigurationPids(Stream.of(configurationPid).collect(Collectors.toList()));
+				} catch (Exception e) {
 					if (deactivated.get()) {
 						// In the process of deactivating, ignore error
 					} else {
@@ -100,7 +109,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	}
 
 	// Do nothing
-	void unsetOsgiChannelHandler(OsgiChannelHandler dynamicHandler, Map<String, Object> properties) {
+	void unsetDynamicChannelHandler(DynamicChannelHandler dynamicHandler, Map<String, Object> properties) {
 	}
 
 	@Reference
@@ -132,25 +141,31 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 		// Create and cache configuration
 		final String channelId = ch.id().asLongText();
-		org.osgi.service.cm.Configuration dynamicHandlerConfig = configAdmin
-				.createFactoryConfiguration(io.blesmol.netty.api.Configuration.OSGI_CHANNEL_HANDLER_PID, "?");
-		configurations.put(channelId, dynamicHandlerConfig);
 		channels.put(channelId, ch);
 
-		// Update the config and cross our fingers
-		final Dictionary<String, Object> props = configUtil.toDynamicChannelHandlerProperties(channelId,
-				config.appName(), config.inetHost(), config.inetPort(), config.factoryPids(), config.handlerNames(), extraProperties);
+		final String configurationPid = configUtil.createDynamicChannelHandlerConfig(channelId, config.appName(),
+				config.inetHost(), config.inetPort(), Arrays.asList(config.factoryPids()),
+				Arrays.asList(config.handlerNames()), extraProperties);
+		// org.osgi.service.cm.Configuration dynamicHandlerConfig = configAdmin
+		// .createFactoryConfiguration(io.blesmol.netty.api.Configuration.DYNAMIC_CHANNEL_HANDLER_PID,
+		// "?");
+		configurations.put(channelId, configurationPid);
 
-		dynamicHandlerConfig.update(props);
-		
+		// Update the config and cross our fingers
+		// final Dictionary<String, Object> props =
+		// configUtil.toDynamicChannelHandlerProperties(channelId,
+		// config.appName(), config.inetHost(), config.inetPort(), config.factoryPids(),
+		// config.handlerNames(), extraProperties);
+
+		// dynamicHandlerConfig.update(props);
+
 		System.out.println("Initialized channel handler " + this);
-		
+
 	}
 
 	@Override
 	public String toString() {
 		return String.format("ChannelInitializerProvider [service.pid=%s]", properties.get(Constants.SERVICE_PID));
 	}
-
 
 }

@@ -27,8 +27,14 @@ public interface ConfigurationUtil {
 
 	String createEventExecutorGroup(String appName, String groupName) throws Exception;
 
-	String createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
+	List<String> createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
+	
+	String createChannelInitializerConfig(String appName, String hostname, int port, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
+
+	String createDynamicChannelHandlerConfig(String channelId, String appName, String hostname,
+			int port, List<String> factoryPids, List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
 
 	String createBootstrapProvider(String appName, String hostname, int port, Optional<String> serverAppName) throws Exception;
 	

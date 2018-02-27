@@ -67,9 +67,9 @@ public interface Configuration {
 		Class<? extends ServerChannel> channel() default NioServerSocketChannel.class;
 	}
 
-	String OSGI_CHANNEL_HANDLER_PID = "io.blesmol.netty.api.OsgiChannelHandler";
+	String DYNAMIC_CHANNEL_HANDLER_PID = "io.blesmol.netty.api.DynamicChannelHandler";
 
-	@interface OsgiChannelHandler {
+	@interface DynamicChannelHandler {
 		String appName();
 
 		String channelId();
