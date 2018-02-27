@@ -39,8 +39,8 @@ public class ExtraPropertiesTest {
 
 	List<String> configPids;
 
-	static final String serverAppName = RoundtripClientServerTest.class.getName() + ":server";
-	static final String clientAppName = RoundtripClientServerTest.class.getName() + ":client";
+	static final String serverAppName = ExtraPropertiesTest.class.getName() + ":server";
+	static final String clientAppName = ExtraPropertiesTest.class.getName() + ":client";
 	static final String serverFactoryPid = TestServerHandler.class.getName();
 	static final String clientFactoryPid = TestClientHandler.class.getName();
 	static final List<String> serverFactoryPids = Arrays.asList(serverFactoryPid);

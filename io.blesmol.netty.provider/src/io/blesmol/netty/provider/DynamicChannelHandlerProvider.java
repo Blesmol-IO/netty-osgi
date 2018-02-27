@@ -40,7 +40,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.concurrent.EventExecutorGroup;
 
-@Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class, immediate = true)
+@Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class)
 public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter implements DynamicChannelHandler {
 
 	// This handler's context
@@ -55,7 +55,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	// The outbound deferred is resolved when the outbound sends us an event, first
 	// time only
 	// The promise is updated each time via a field updater
-	private final Deferred<DynamicHandlerEvents> outboundHandlerDeferred = new Deferred<DynamicHandlerEvents>();
+	private volatile Deferred<DynamicHandlerEvents> outboundHandlerDeferred = new Deferred<DynamicHandlerEvents>();
 	private volatile Promise<?> outboundHandlerPromise = outboundHandlerDeferred.getPromise();
 	// private volatile Promise<?> outboundHandlerPromise = new
 	// Deferred<Void>().getPromise();
@@ -104,7 +104,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	void setChannelHandler(ChannelHandler handler, Map<String, Object> props) {
 
 		// TODO log
-		System.out.println("setting channel handler " + handler);
+		System.out.println(String.format("Setting channel handler %s with properties %s", handler, props));
 		String handlerName = null;
 		String factoryPid = null;
 		try {
@@ -137,7 +137,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	void unsetChannelHandler(ChannelHandler handler, Map<String, Object> props) {
 
 		// TODO log
-		System.out.println("unsetting channel handler " + handler);
+		System.out.println("Unsetting channel handler " + handler);
 		String handlerName = null;
 		String factoryPid = null;
 		try {
@@ -510,11 +510,11 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		System.out.println(this + " read called");
+		System.out.println(String.format("%s read called with promise %s", this, outboundHandlerPromise)); 
 		outboundHandlerPromise.onResolve(new Runnable() {
 			@Override
 			public void run() {
-				System.out.println(this + " read called");
+				System.out.println(this + " read");
 				try {
 					DynamicChannelHandlerProvider.super.channelRead(ctx, msg);
 				} catch (Exception e) {
@@ -527,7 +527,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	@Override
 	public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-		System.out.println(this + " read complete called");
+		System.out.println(String.format("%s read complete called with promise %s", this, outboundHandlerPromise)); 
 		outboundHandlerPromise.onResolve(new Runnable() {
 			@Override
 			public void run() {
@@ -554,13 +554,16 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 				Promise<DynamicHandlerEvents> eventPromise = (Promise<DynamicHandlerEvents>) evt;
 				switch (eventPromise.getValue()) {
 				case LAST_HANDLER_ADDED:
+					System.out.print(String.format("Old promise: %s", outboundHandlerPromise));
 					// First resolve the deferred, which resolves any outstanding promise callbacks
 					outboundHandlerDeferred.resolveWith(eventPromise);
+					// Update the promise with the newly updated deferred promise
+					// No-op first time around
+					OUTBOUND_PROMISE.set(this, outboundHandlerDeferred.getPromise());
 					// Then update the deferred so it is ready to resolve the next time around
 					final Deferred<Void> newOutboundHandlerDeferred = new Deferred<>();
 					OUTBOUND_DEFERRED.set(this, newOutboundHandlerDeferred);
-					// And update the promise with the newly updated deferred promise
-					OUTBOUND_PROMISE.set(this, newOutboundHandlerDeferred.getPromise());
+					System.out.println(String.format(". New promise: %s", outboundHandlerPromise));
 					return;
 				default:
 					break;

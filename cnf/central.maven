@@ -26,3 +26,5 @@ io.netty:netty-buffer:jar:4.1.20.Final
 io.netty:netty-buffer:jar:sources:4.1.20.Final
 net.bytebuddy:byte-buddy:jar:1.7.10
 net.bytebuddy:byte-buddy-agent:jar:1.7.10
+org.ops4j.pax.logging:pax-logging-api:jar:1.10.1
+org.ops4j.pax.logging:pax-logging-service:jar:1.10.1

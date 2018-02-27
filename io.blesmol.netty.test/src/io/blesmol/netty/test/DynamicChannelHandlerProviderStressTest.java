@@ -4,7 +4,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Optional;
@@ -24,13 +23,11 @@ import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.cm.ManagedServiceFactory;
 
-import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.DynamicChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.test.TestUtils.SkeletonChannelHandler;
 import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 
@@ -69,21 +66,21 @@ public class DynamicChannelHandlerProviderStressTest {
 //		configuration = configAdmin.createFactoryConfiguration(Configuration.DYNAMIC_CHANNEL_HANDLER_PID, "?");
 //		configuration.update(props);
 		
-//		configurationPids.add(configUtil.createDynamicChannelHandlerConfig(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
+		configurationPids.add(configUtil.createDynamicChannelHandlerConfig(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
 //		configurationPids.addAll(configUtil.createNettyServer(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
-		configurationPids.addAll(configUtil.createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
+//		configurationPids.addAll(configUtil.createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
 
-		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
+		String filter = String.format("(&(%s=%s)(%s=%s))", //(%s=%d)(%s=%s))",
 				//
-//				Constants.OBJECTCLASS, DynamicChannelHandler.class.getName(),
-				Property.DynamicChannelHandler.CHANNEL_ID, channelId,
-				Property.DynamicChannelHandler.INET_HOST, hostname,
-				Property.DynamicChannelHandler.INET_PORT, port,
-				Property.DynamicChannelHandler.APP_NAME, appName);
-//				Property.DynamicChannelHandler.CHANNEL_ID, channelId);
+				Constants.OBJECTCLASS, DynamicChannelHandler.class.getName(),
+//				Property.DynamicChannelHandler.CHANNEL_ID, channelId,
+//				Property.DynamicChannelHandler.INET_HOST, hostname,
+//				Property.DynamicChannelHandler.INET_PORT, port,
+//				Property.DynamicChannelHandler.APP_NAME, appName);
+				Property.DynamicChannelHandler.CHANNEL_ID, channelId);
 
-		ChannelInitializer channelInitializer = TestUtils.getService(context, ChannelInitializer.class, 2000);
-		ch.pipeline().addFirst(channelInitializer);
+////		ChannelInitializer channelInitializer = TestUtils.getService(context, ChannelInitializer.class, 2000);
+//		ch.pipeline().addFirst(channelInitializer);
 		dynamicHandler = TestUtils.getService(context, DynamicChannelHandler.class, 3000);
 		assertNotNull(dynamicHandler);
 	}
