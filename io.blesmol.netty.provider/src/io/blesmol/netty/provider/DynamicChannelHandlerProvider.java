@@ -40,7 +40,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.concurrent.EventExecutorGroup;
 
-@Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class)
+@Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class, immediate = true)
 public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter implements DynamicChannelHandler {
 
 	// This handler's context
@@ -104,7 +104,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	void setChannelHandler(ChannelHandler handler, Map<String, Object> props) {
 
 		// TODO log
-		System.out.println(String.format("Setting channel handler %s with properties %s", handler, props));
+		System.out.println(String.format("Setting channel handler %s on %s", props.get(Constants.SERVICE_PID), this));
 		String handlerName = null;
 		String factoryPid = null;
 		try {

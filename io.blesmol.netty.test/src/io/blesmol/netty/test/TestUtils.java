@@ -11,6 +11,8 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
+import org.osgi.util.promise.Deferred;
+import org.osgi.util.promise.Promise;
 import org.osgi.util.tracker.ServiceTracker;
 
 import io.netty.buffer.ByteBuf;
@@ -18,6 +20,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 
 public class TestUtils {
 
@@ -213,4 +217,69 @@ public class TestUtils {
 		}
 
 	}
+	
+
+	public static interface LatchChannelHandler extends ChannelHandler {
+		void setLatch(CountDownLatch latch);
+	}
+	
+	public static class LatchTestChannelHandlerFactory extends TestChannelHandlerFactory {
+
+		private final CountDownLatch latch;
+
+		public LatchTestChannelHandlerFactory(BundleContext context,
+				Class<? extends ChannelHandler> channelHandlerClass, CountDownLatch latch) {
+			super(context, channelHandlerClass);
+			this.latch = latch;
+		}
+
+		@Override
+		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
+			super.updated(pid, properties);
+			ChannelHandler handler = getHandlerViaPid(pid);
+			if (handler != null && handler instanceof LatchChannelHandler) {
+				((LatchChannelHandler) handler).setLatch(latch);
+			}
+		}
+	}
+//	
+//	
+//	public class LatchOutboundChannelHandler extends ChannelOutboundHandlerAdapter implements LatchChannelHandler {
+//
+//		public static String HANDLER_NAME = "testLatchOutboundAdapter";
+//
+//		private final Deferred<DynamicHandlerEvents> handlerAddedDeferred = new Deferred<>();
+//		private final Promise<DynamicHandlerEvents> handlerAddedPromise = handlerAddedDeferred.getPromise();
+//
+//		@Override
+//		public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+//			handlerAddedDeferred.resolve(DynamicHandlerEvents.LAST_HANDLER_ADDED);
+//			// Fire the event on the pipeline to get to the first handler
+//			ctx.channel().pipeline().fireUserEventTriggered(handlerAddedPromise);
+//			System.out.println("Fired last handler added event in dynamic outbound handler on first context");
+//			System.out.println("Removing dynamic outbound handler from pipeline");
+//			ctx.channel().pipeline().remove(this);
+////			ctx.executor().execute(new Runnable() {
+////				@Override
+////				public void run() {
+////					System.out.println("Removing dynamic outbound handler from pipeline");
+////					ctx.channel().pipeline().remove(DynamicOutboundChannelHandler.this);
+////				}
+////			});
+//		}
+//
+//		@Override
+//		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+//			cause.printStackTrace();
+//			ctx.close();
+//		}
+//
+//
+//		@Override
+//		public void setLatch(CountDownLatch latch) {
+//			// TODO Auto-generated method stub
+//			
+//		}
+//
+//	}
 }

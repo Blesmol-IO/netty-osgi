@@ -5,12 +5,14 @@ import static org.junit.Assert.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
-import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.After;
 import org.junit.Before;
@@ -21,18 +23,17 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
-import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyClient;
 import io.blesmol.netty.api.Property;
-import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
+import io.blesmol.netty.test.TestUtils.LatchChannelHandler;
+import io.blesmol.netty.test.TestUtils.LatchTestChannelHandlerFactory;
 import io.blesmol.netty.test.TestUtils.TestClientHandler;
 import io.blesmol.netty.test.TestUtils.TestServerHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -40,6 +41,8 @@ public class RoundtripClientServerTest {
 
 	final BundleContext context = FrameworkUtil.getBundle(RoundtripClientServerTest.class).getBundleContext();
 
+	final ExecutorService executorService = Executors.newCachedThreadPool();
+	
 	private ConfigurationUtil configUtil;
 
 	private NettyClient client;
@@ -48,8 +51,8 @@ public class RoundtripClientServerTest {
 
 	static final String serverAppName = RoundtripClientServerTest.class.getName() + ":server";
 	static final String clientAppName = RoundtripClientServerTest.class.getName() + ":client";
-	static final String serverFactoryPid = TestServerHandler.class.getName();
-	static final String clientFactoryPid = TestClientHandler.class.getName();
+	static final String serverFactoryPid = serverAppName;
+	static final String clientFactoryPid = clientAppName;
 	static final List<String> serverFactoryPids = Arrays.asList(serverFactoryPid);
 	static final List<String> clientFactoryPids = Arrays.asList(clientFactoryPid);
 	static final String serverHandlerName = "gibson";
@@ -71,7 +74,22 @@ public class RoundtripClientServerTest {
 
 	@After
 	public void after() throws Exception {
-		configUtil.deleteConfigurationPids(configPids);
+		executorService.execute(new Runnable() {
+			
+			private ConfigurationUtil configUtil = RoundtripClientServerTest.this.configUtil;
+
+			@Override
+			public void run() {
+				try {
+					configUtil.deleteConfigurationPids(configPids);
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					configUtil = null;
+				}
+				
+			}
+		});
 		configUtil = null;
 	}
 
@@ -102,16 +120,16 @@ public class RoundtripClientServerTest {
 			this.latch = latch;
 
 		}
-
-		@Override
-		public void channelActive(ChannelHandlerContext ctx) {
-			super.channelActive(ctx);
-
-			if (latch != null) {
-				System.out.println("Decrementing latch");
-				latch.countDown();
-			}
-		}
+//
+//		@Override
+//		public void channelActive(ChannelHandlerContext ctx) {
+//			super.channelActive(ctx);
+//
+//			if (latch != null) {
+//				System.out.println("Decrementing latch");
+//				latch.countDown();
+//			}
+//		}
 
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
@@ -127,87 +145,89 @@ public class RoundtripClientServerTest {
 	@Test
 	public void shouldRoundtripMessage() throws Exception {
 
-		// Register server handler factory, which will be called
-		Hashtable<String, Object> serverHandlerProps = new Hashtable<>();
-		CountDownLatch serverLatch = new CountDownLatch(1);
-		RoundtripTestChannelHandlerFactory serverHandlerFactory = new RoundtripTestChannelHandlerFactory(context,
-				LatchTestServerHandler.class, serverLatch);
-		serverHandlerProps.put(Constants.SERVICE_PID, serverFactoryPid);
-		ServiceRegistration<ManagedServiceFactory> serverRegistration = context
-				.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps);
+		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> serverRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(null);
+		final CountDownLatch serverLatch = new CountDownLatch(1);
 
-		// Register client handler factory, which will be called
-		Hashtable<String, Object> clientHandlerProps = new Hashtable<>();
-		CountDownLatch clientLatch = new CountDownLatch(2);
-		RoundtripTestChannelHandlerFactory clientHandlerFactory = new RoundtripTestChannelHandlerFactory(context,
-				LatchTestClientHandler.class, clientLatch);
-		clientHandlerProps.put(Constants.SERVICE_PID, clientFactoryPid);
-		ServiceRegistration<ManagedServiceFactory> clientRegistration = context
-				.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps);
-
-		// Run client and register latch
-		final CountDownLatch connectLatch = new CountDownLatch(1);
-
-		// Be quick, get the client! It may disappear shortly
-		String clientFilter = String.format("(&(%s=%s)(%s=%s))", Property.NettyClient.APP_NAME, clientAppName,
-				Constants.OBJECTCLASS, NettyClient.class.getName());
-		client = TestUtils.getService(context, NettyClient.class, 3000, clientFilter);
-		client.promise().onResolve(new Runnable() {
-
+		executorService.execute(new Runnable() {
+			
 			@Override
 			public void run() {
-				System.out.println("resolved client connection");
-				try {
-					client.promise().getValue().addListener(new ChannelFutureListener() {
-						@Override
-						public void operationComplete(ChannelFuture future) throws Exception {
-							if (future.isSuccess()) {
-								connectLatch.countDown();
-							} else {
-								throw new RuntimeException(future.cause());
-							}
-						}
-					});
-				} catch (InvocationTargetException | InterruptedException e) {
-					e.printStackTrace();
-					fail();
-				}
+				Hashtable<String, Object> serverHandlerProps = new Hashtable<>();
+				LatchTestChannelHandlerFactory serverHandlerFactory = new LatchTestChannelHandlerFactory(context,
+						LatchTestServerHandler.class, serverLatch);
+				serverHandlerProps.put(Constants.SERVICE_PID, serverFactoryPid);
+				serverRegistration.set(context
+						.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps));
+			}
+		});
+		// Register server handler factory, which will be called
+//		Hashtable<String, Object> serverHandlerProps = new Hashtable<>();
+//		CountDownLatch serverLatch = new CountDownLatch(1);
+//		LatchTestChannelHandlerFactory serverHandlerFactory = new LatchTestChannelHandlerFactory(context,
+//				LatchTestServerHandler.class, serverLatch);
+//		serverHandlerProps.put(Constants.SERVICE_PID, serverFactoryPid);
+//		ServiceRegistration<ManagedServiceFactory> serverRegistration = context
+//				.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps);
 
+		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> clientRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(null);
+		final CountDownLatch clientLatch = new CountDownLatch(1);
+
+		// Register client handler factory, which will be called
+		executorService.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				Hashtable<String, Object> clientHandlerProps = new Hashtable<>();
+				LatchTestChannelHandlerFactory clientHandlerFactory = new LatchTestChannelHandlerFactory(context,
+						LatchTestClientHandler.class, clientLatch);
+				clientHandlerProps.put(Constants.SERVICE_PID, clientFactoryPid);
+				clientRegistration.set(context
+						.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps));
+				
 			}
 		});
 
-		// Verify
-		assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
-		assertTrue(serverLatch.await(3, TimeUnit.SECONDS));
-		assertTrue(clientLatch.await(4, TimeUnit.SECONDS));
+//
+//		// Run client and register latch
+//		final CountDownLatch connectLatch = new CountDownLatch(1);
+//
+//		// Be quick, get the client! It may disappear shortly
+//		String clientFilter = String.format("(&(%s=%s)(%s=%s))", Property.NettyClient.APP_NAME, clientAppName,
+//				Constants.OBJECTCLASS, NettyClient.class.getName());
+//		client = TestUtils.getService(context, NettyClient.class, 3000, clientFilter);
+//		client.promise().onResolve(new Runnable() {
+//
+//			@Override
+//			public void run() {
+//				System.out.println("resolved client connection");
+//				try {
+//					client.promise().getValue().addListener(new ChannelFutureListener() {
+//						@Override
+//						public void operationComplete(ChannelFuture future) throws Exception {
+//							if (future.isSuccess()) {
+//								connectLatch.countDown();
+//							} else {
+//								throw new RuntimeException(future.cause());
+//							}
+//						}
+//					});
+//				} catch (InvocationTargetException | InterruptedException e) {
+//					e.printStackTrace();
+//					fail();
+//				}
+//
+//			}
+//		});
+//
+//		// Verify
+//		assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
+		assertTrue(serverLatch.await(10, TimeUnit.SECONDS));
+		assertTrue(clientLatch.await(10, TimeUnit.SECONDS));
 
 		// Cleanup
-		serverRegistration.unregister();
-		clientRegistration.unregister();
+		serverRegistration.get().unregister();
+		clientRegistration.get().unregister();
 
 	}
 
-	public static interface LatchChannelHandler extends ChannelHandler {
-		void setLatch(CountDownLatch latch);
-	}
-
-	public static class RoundtripTestChannelHandlerFactory extends TestChannelHandlerFactory {
-
-		private final CountDownLatch latch;
-
-		public RoundtripTestChannelHandlerFactory(BundleContext context,
-				Class<? extends ChannelHandler> channelHandlerClass, CountDownLatch latch) {
-			super(context, channelHandlerClass);
-			this.latch = latch;
-		}
-
-		@Override
-		public void updated(String pid, Dictionary<String, ?> properties) throws ConfigurationException {
-			super.updated(pid, properties);
-			ChannelHandler handler = getHandlerViaPid(pid);
-			if (handler != null && handler instanceof LatchChannelHandler) {
-				((LatchChannelHandler) handler).setLatch(latch);
-			}
-		}
-	}
 }

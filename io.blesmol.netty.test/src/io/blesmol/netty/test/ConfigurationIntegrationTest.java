@@ -6,7 +6,10 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
@@ -51,7 +54,20 @@ public class ConfigurationIntegrationTest {
 		final List<String> handlerNames = new ArrayList<>();
 
 		// Create the server config, channel initializer, and dynamic handler
-		List<String> pids = configUtil.createNettyServer(appName, hostname, port, factoryPids, handlerNames, Optional.empty());
+		ExecutorService executorService = Executors.newCachedThreadPool();
+		
+		final List<String> pids = new CopyOnWriteArrayList<>();
+		executorService.execute(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					pids.addAll(configUtil.createNettyServer(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}				
+			}
+		});
 
 		// Verify service creation and pipeline being established
 //		ServiceReference<NettyServer> reference = TestUtils.getTracker(context, NettyServer.class).getServiceReference();
@@ -71,7 +87,19 @@ public class ConfigurationIntegrationTest {
 
 		// Delete the config and wait so the service manager factory can
 		// unregister the service
-		configUtil.deleteConfigurationPids(pids);
+		executorService.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				try {
+					configUtil.deleteConfigurationPids(pids);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				
+			}
+		});
+
 //		context.ungetService(reference);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 	}

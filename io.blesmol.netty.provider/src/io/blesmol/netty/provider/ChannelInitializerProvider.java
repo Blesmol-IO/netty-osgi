@@ -110,6 +110,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 	// Do nothing
 	void unsetDynamicChannelHandler(DynamicChannelHandler dynamicHandler, Map<String, Object> properties) {
+		System.out.println("Unsetting dynamic handler " + dynamicHandler);
 	}
 
 	@Reference
@@ -159,7 +160,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 		// dynamicHandlerConfig.update(props);
 
-		System.out.println("Initialized channel handler " + this);
+		System.out.println(String.format("Initialized channel handler %s with channel ID %s", this, channelId));
 
 	}
 

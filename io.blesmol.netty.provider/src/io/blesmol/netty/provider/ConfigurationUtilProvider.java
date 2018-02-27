@@ -123,7 +123,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	public String createChannelInitializerConfig(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
 
-		final Dictionary<String, Object> props = toChannelInitializerProperties(appName, hostname, port, factoryPids, handlerNames, extraProperties);
+		final Dictionary<String, Object> props = toChannelInitializerProperties(appName, hostname, port, factoryPids,
+				handlerNames, extraProperties);
 		return createConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, props);
 	}
 
@@ -142,15 +143,15 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		addExtraProperties(props, extraProperties);
 
 		// Target dynamic channel handler
-		final String handlerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d))", Property.ChannelInitializer.APP_NAME,
-				appName, Property.ChannelInitializer.INET_HOST, hostname, Property.ChannelInitializer.INET_PORT, port);
+		final String handlerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d))", Property.DynamicChannelHandler.APP_NAME,
+				appName, Property.DynamicChannelHandler.INET_HOST, hostname, Property.DynamicChannelHandler.INET_PORT, port);
 		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLERS_TARGET, handlerTarget);
 
 		// Target event executor group
 		final String eventTarget = String.format("(&(%s=%s)(%s=%s))", Property.EventExecutorGroup.APP_NAME, appName,
 				Property.EventExecutorGroup.GROUP_NAME, ReferenceName.ChannelInitializer.EVENT_EXECUTOR_GROUP);
 		props.put(ReferenceName.ChannelInitializer.EVENT_EXECUTOR_GROUP_TARGET, eventTarget);
-		
+
 		return props;
 	}
 
@@ -159,10 +160,11 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			List<String> factoryPids, List<String> handlerNames, Optional<Map<String, Object>> extraProperties)
 			throws Exception {
 
-		final Dictionary<String, Object> props = toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids, handlerNames, extraProperties);
+		final Dictionary<String, Object> props = toDynamicChannelHandlerProperties(channelId, appName, hostname, port,
+				factoryPids, handlerNames, extraProperties);
 		return createConfiguration(io.blesmol.netty.api.Configuration.DYNAMIC_CHANNEL_HANDLER_PID, props);
 	}
-	
+
 	@Override
 	public Dictionary<String, Object> toDynamicChannelHandlerProperties(String channelId, String appName,
 			String hostname, int port, String[] factoryPids, String[] handlerNames,
@@ -180,12 +182,13 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		extraProperties.ifPresent(ep -> props.putAll(ep));
 
 		// bind this dynamic handler
-		props.put(ReferenceName.DynamicChannelHandler.CHANNEL_HANDLER_TARGET,
-				String.format("(%s=%s)", Property.ChannelHandler.CHANNEL_ID, channelId));
+		final String channelHandlerTarget = String.format("(&(%s=%s)(%s=%s))", Property.ChannelHandler.CHANNEL_ID,
+				channelId, Property.ChannelHandler.APP_NAME, appName);
+		props.put(ReferenceName.DynamicChannelHandler.CHANNEL_HANDLER_TARGET, channelHandlerTarget);
 
 		return props;
 	}
-	
+
 	@Override
 	public String createNettyServerConfig(String appName, String hostname, Integer port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
@@ -316,7 +319,11 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			}
 			for (Configuration config : configs) {
 				configurations.remove(config);
-				config.delete();
+				try {
+					config.delete();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
