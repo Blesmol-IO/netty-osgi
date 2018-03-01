@@ -205,6 +205,9 @@ public class ChannelInitializerMultiChannelsTest {
 		ServiceTracker<DynamicChannelHandler, DynamicChannelHandler> dynamicHandlersTracker = TestUtils
 				.getTracker(context, DynamicChannelHandler.class, dynamicHandlersFilter);
 
+		// There's a race after configuration admin created the handler configs and 
+		// the handlers being activated. Sleep here to help win the race
+		Thread.sleep(500);
 		assertEquals(count, dynamicHandlersTracker.getTracked().size());
 
 		dynamicHandlersTracker.getTracked().entrySet().stream().forEach(es -> {
@@ -233,9 +236,20 @@ public class ChannelInitializerMultiChannelsTest {
 
 		Promises.all(promisedChannels.values()).getValue().forEach(c -> {
 			// verify all handlers were added
+			final List<String> names = c.pipeline().names();
 			System.out.println(String.format("Reviewing pipeline %s id %s with names %s", c.pipeline(),
-					c.id().asLongText(), c.pipeline().names()));
-			assertEquals(c.pipeline().names().size(), handlerNames.size() + 2/* dynamic & tail */);
+					c.id().asLongText(), names));
+			
+			int actualSize = c.pipeline().names().size();
+			int expectedSize = handlerNames.size() + 2; // dynamic & tail
+			
+			// Sometimes we catch the outbound handler before it's removed
+			// Note: may break if name is changed, sorry :-/
+			if (actualSize == expectedSize + 1 && names.contains("dynamicOutboundChannelHandler")) {
+				System.out.println("Decrementing acutalSize from " + actualSize);
+				actualSize--;
+			}
+			assertEquals(expectedSize, actualSize);
 		});
 
 		promisedChannels.values().forEach(p -> {

@@ -15,6 +15,12 @@ Refer to the Releases page for the latest zipped p2 repository.
 
 Refer to the [example application component](io.blesmol.netty.example/src/io/blesmol/netty/example/Application.java). Note its usage of `immediate=true`. Without this, the component may stay in a `REGISTERED` OSGi state instead of `ACTIVE`. Instead, immediately activate it.
 
+## API
+
+### `EventExecutorGroupHandler`
+
+Specifies a handler wants to use some other `EventExecutorGroup` instead of the default channel event loop. The dynamic handler will obtain the event executor group via this interface and pass it when adding the handler to the pipeline.
+
 ## Use
 
 * Deploy the API, provider, and util bundles
@@ -54,11 +60,23 @@ Refer to the [example application component](io.blesmol.netty.example/src/io/ble
 
 ### `ChannelHandler.handlerAdded` Implementations
 
-The dynamic handler currently operates on its own event executor group, separate from the channel
+If a channel handler is dynamically created (via the dynamic handler) and removes itself in `handlerAdded`, the dynamic handler will fail on adding the next handler. This is because it conceptually treats the list as a linked list, using the previous handler as a key when adding the next handler. When the handler is deleted, this key becomes invalid, causing an exception:
 
-Be quick in implemented `io.netty.channel.ChannelHandler.handlerAdded(ChannelHandlerContext)` methods. If these do not finish quick enough, the dynamic handler will win a race where the previously added handler hasn't been fully added. This will cause the next handler to be added by the dynamic handler to fail, since it uses the previously added handler's name as a key. Since the keyed handler hasn't been fully added, the pipeline will thrown an exception saying the keyed handler name doesn't exist.
+```java
+java.util.NoSuchElementException: httpConnectProxyServer
+	at io.netty.channel.DefaultChannelPipeline.getContextOrDie(DefaultChannelPipeline.java:1097)
+	at io.netty.channel.DefaultChannelPipeline.addAfter(DefaultChannelPipeline.java:320)
+	at io.blesmol.netty.provider.DynamicChannelHandlerProvider.lambda$12(DynamicChannelHandlerProvider.java:439)
+```
 
-This problem can also come up if a handler directly adds other handlers. Avoid if possible by providing these handlers via OSGi and adding them to the dynamic handler.
+Workarounds:
+
+* If the pattern is to add a bunch of handlers and then remove the current handler, then instead use the dynamic handler and configure its list of handlers directly.
+* In the next handler remove the previous handler.
+* Schedule the handler to be removed on its executor. Note: don't just `executor.execute` it, since that could be run in the current thread at the discretion of the executor.
+* Do not remove handlers specified via the dynamic handler
+* Option D...
+
 
 ## License
 

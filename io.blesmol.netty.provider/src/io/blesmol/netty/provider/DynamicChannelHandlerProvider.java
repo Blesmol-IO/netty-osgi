@@ -56,6 +56,11 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	// Extra handler properties
 	private volatile Optional<Map<String, Object>> extraProperties;
 
+	@SuppressWarnings("unused")
+	private volatile Boolean closed = false;
+	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Boolean> CLOSED = AtomicReferenceFieldUpdater
+			.newUpdater(DynamicChannelHandlerProvider.class, Boolean.class, "closed"); 
+	
 	// The outbound deferred is resolved when the outbound sends us an event, first
 	// time only
 	// The promise is updated each time via a field updater
@@ -248,18 +253,27 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 		System.out.println("Deactivating dynamic handler properties: " + properties);
 
-		// Chain this promise off the existing one in the queue, which there should
-		// always be one. What we create we must destroy
-		promises.remove()
-				.then((p) -> deleteFactoryConfigurations(IntStream.range(0, config.handlerNames().length)
-						.mapToObj(i -> new HandlerNameFactoryPid(config.handlerNames()[i], config.factoryPids()[i]))
-						.collect(Collectors.toList())));
-
 		priorConfig = config;
-		// TODO: log
+		close();
 		System.out.println("Deactivated " + this);
 	}
 
+	private void close() {
+
+		// exit quickly if we've already been called
+		if (CLOSED.compareAndSet(this, false, true)) {
+
+			Configuration.DynamicChannelHandler config = this.priorConfig;
+	
+			// Chain this promise off the existing one in the queue, which there should
+			// always be one. What we create we must destroy
+			promises.remove()
+			.then((p) -> deleteFactoryConfigurations(IntStream.range(0, config.handlerNames().length)
+					.mapToObj(i -> new HandlerNameFactoryPid(config.handlerNames()[i], config.factoryPids()[i]))
+					.collect(Collectors.toList())));
+		}
+	}
+	
 	private List<HandlerNameFactoryPid> toKeys(String[] handlerNames, String[] factoryPids) {
 
 		assert handlerNames.length == factoryPids.length;
@@ -558,6 +572,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	@Override
 	public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
 		System.out.println(this + " removed");
+		close();
 	}
 
 	// For below methods, wrap the call in a promise that'll resolve when the
@@ -710,6 +725,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		cause.printStackTrace();
 		ctx.close();
+		close();
 	}
 
 	@Override

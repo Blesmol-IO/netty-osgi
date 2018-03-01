@@ -85,6 +85,7 @@ public class DynamicChannelHandlerProviderStressTest {
 				String pid;
 				try {
 					pid = pidPromise.getValue();
+					System.out.println("Resolving promise based on pid " + pid);
 					result.resolve(event.getPid().equals(pid) && event.getType() == ConfigurationEvent.CM_UPDATED);
 				} catch (InvocationTargetException | InterruptedException e) {
 					result.fail(e);
@@ -116,6 +117,11 @@ public class DynamicChannelHandlerProviderStressTest {
 		
 		assertTrue(configurationListenerLatch.await(5000, TimeUnit.SECONDS));
 		
+		// There's a race after configuration admin created the handler configs and 
+		// the handlers being activated. Sleep here to help win the race
+		// A proper way to fix this is signaling from the dynamic handle to event admin
+		Thread.sleep(500);
+
 		String filter = String.format("(&(%s=%s)(%s=%s))", Property.DynamicChannelHandler.APP_NAME, appName, Property.DynamicChannelHandler.CHANNEL_ID, channelId);
 		handlerTracker = TestUtils.getTracker(context, DynamicChannelHandler.class, filter);
 		dynamicHandler = handlerTracker.getService();

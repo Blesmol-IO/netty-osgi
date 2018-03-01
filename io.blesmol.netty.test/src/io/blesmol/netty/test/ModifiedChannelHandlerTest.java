@@ -118,16 +118,13 @@ public class ModifiedChannelHandlerTest {
 
 	@AfterClass
 	public static void afterClass() throws Exception {
-		executor.execute(() -> {
-			trackers.forEach(t -> t.close());
-			factoryRegistration.unregister();
-			try {
-				handlerConfig.delete();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
-
+		trackers.forEach(t -> t.close());
+		factoryRegistration.unregister();
+		try {
+			handlerConfig.delete();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@After

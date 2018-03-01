@@ -10,6 +10,7 @@ import io.netty.channel.ChannelPromise;
 
 public class DynamicOutboundChannelHandler extends ChannelOutboundHandlerAdapter {
 
+	// TODO move to api?
 	public static String HANDLER_NAME = "dynamicOutboundChannelHandler";
 
 	private final Deferred<DynamicHandlerEvents> handlerAddedDeferred = new Deferred<>();

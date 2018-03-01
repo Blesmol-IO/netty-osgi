@@ -1,6 +1,8 @@
 
 ## TODOs
 
+* Support handlers which declare they wish to be deleted
+
 * Logging, lol
 
 * Currently using 3 different "future" APIs: OSGi, Netty, and Java futures. Reduce to 2 or 1
