@@ -50,6 +50,16 @@ Refer to the [example application component](io.blesmol.netty.example/src/io/ble
 * Stress test case that adds 100s of embedded channels, each w/ scores of handlers
 * Measure test case times and store as performance measures
 
+## Gotchas
+
+### `ChannelHandler.handlerAdded` Implementations
+
+The dynamic handler currently operates on its own event executor group, separate from the channel
+
+Be quick in implemented `io.netty.channel.ChannelHandler.handlerAdded(ChannelHandlerContext)` methods. If these do not finish quick enough, the dynamic handler will win a race where the previously added handler hasn't been fully added. This will cause the next handler to be added by the dynamic handler to fail, since it uses the previously added handler's name as a key. Since the keyed handler hasn't been fully added, the pipeline will thrown an exception saying the keyed handler name doesn't exist.
+
+This problem can also come up if a handler directly adds other handlers. Avoid if possible by providing these handlers via OSGi and adding them to the dynamic handler.
+
 ## License
 
 Apache 2.0

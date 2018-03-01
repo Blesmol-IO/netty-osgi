@@ -11,8 +11,6 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedServiceFactory;
-import org.osgi.util.promise.Deferred;
-import org.osgi.util.promise.Promise;
 import org.osgi.util.tracker.ServiceTracker;
 
 import io.netty.buffer.ByteBuf;
@@ -20,8 +18,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
 
 public class TestUtils {
 

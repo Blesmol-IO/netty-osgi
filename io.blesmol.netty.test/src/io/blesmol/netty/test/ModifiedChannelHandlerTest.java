@@ -3,12 +3,16 @@ package io.blesmol.netty.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -67,6 +71,8 @@ public class ModifiedChannelHandlerTest {
 
 	private static Dictionary<String, Object> defaultHandlerProps;
 
+	private static final ExecutorService executor = Executors.newCachedThreadPool();
+
 	@BeforeClass
 	public static void beforeClass() throws Exception {
 		ServiceTracker<ConfigurationAdmin, ConfigurationAdmin> adminTracker = TestUtils.getTracker(context,
@@ -102,22 +108,39 @@ public class ModifiedChannelHandlerTest {
 		assertNotNull(dynamicHandler);
 		// Simulate channel initializer
 		ch.pipeline().addFirst(DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
+		// wait for the dust to settle
+		dynamicHandler.handlersConfigured().getValue().get(5000, TimeUnit.MILLISECONDS);
+		// Allow embedded pipeline tasks to run after all everything is added
+		System.out.println("Running pending tasks");
+		ch.runPendingTasks();
 
 	}
 
 	@AfterClass
 	public static void afterClass() throws Exception {
-		trackers.forEach(t -> t.close());
-		admin = null;
-		factoryRegistration.unregister();
-		handlerConfig.delete();
-		configUtil = null;
+		executor.execute(() -> {
+			trackers.forEach(t -> t.close());
+			factoryRegistration.unregister();
+			try {
+				handlerConfig.delete();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+
 	}
 
 	@After
 	public void after() throws Exception {
 		handlerConfig.update(defaultHandlerProps);
-		Thread.sleep(1000);
+		// Sleep to allow race to complete for modified
+		Thread.sleep(200);
+
+		// wait for the dust to settle
+		dynamicHandler.handlersConfigured().getValue().get(5000, TimeUnit.MILLISECONDS);
+		// Allow embedded pipeline tasks to run after all everything is added
+		System.out.println("Running pending tasks");
+		ch.runPendingTasks();
 	}
 
 	@Test
@@ -131,9 +154,17 @@ public class ModifiedChannelHandlerTest {
 				hostname, port, factoryPids, handlerNames, Optional.empty());
 		handlerConfig.update(props);
 
+		// Sleep to allow race to complete for modified
+		Thread.sleep(200);
+
 		// wait for the dust to settle
-		Thread.sleep(1000);
+		dynamicHandler.handlersConfigured().getValue().get(5000, TimeUnit.MILLISECONDS);
+		// Allow embedded pipeline tasks to run after all everything is added
+		System.out.println("Running pending tasks");
+		ch.runPendingTasks();
+
 		List<String> pipelineNames = ch.pipeline().names();
+		System.out.println(pipelineNames);
 		final int idx = pipelineNames.indexOf(handlerNames.get(0));
 
 		// Verify size is correct
@@ -156,9 +187,18 @@ public class ModifiedChannelHandlerTest {
 				hostname, port, factoryPids, handlerNames, Optional.empty());
 		handlerConfig.update(props);
 
+		// Sleep to allow race to complete for modified
+		Thread.sleep(200);
+
 		// wait for the dust to settle
-		Thread.sleep(1000);
+		dynamicHandler.handlersConfigured().getValue().get(5000, TimeUnit.MILLISECONDS);
+		// Allow embedded pipeline tasks to run after all everything is added
+		System.out.println("Running pending tasks");
+		ch.runPendingTasks();
+
+		// Thread.sleep(1000);
 		List<String> pipelineNames = ch.pipeline().names();
+		System.out.println(pipelineNames);
 		final int idx = pipelineNames.indexOf(handlerNames.get(0));
 
 		// Verify size is correct
@@ -181,8 +221,14 @@ public class ModifiedChannelHandlerTest {
 				hostname, port, factoryPids, handlerNames, Optional.empty());
 		handlerConfig.update(props);
 
+		// Sleep to allow race to complete for modified
+		Thread.sleep(200);
+
 		// wait for the dust to settle
-		Thread.sleep(1000);
+		dynamicHandler.handlersConfigured().getValue().get(5000, TimeUnit.MILLISECONDS);
+		// Allow embedded pipeline tasks to run after all everything is added
+		System.out.println("Running pending tasks");
+		ch.runPendingTasks();
 
 		List<String> pipelineNames = ch.pipeline().names();
 

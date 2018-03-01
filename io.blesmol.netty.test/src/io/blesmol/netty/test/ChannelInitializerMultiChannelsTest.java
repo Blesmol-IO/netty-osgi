@@ -8,11 +8,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -27,6 +27,8 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
+import org.osgi.service.cm.ConfigurationEvent;
+import org.osgi.service.cm.ConfigurationListener;
 import org.osgi.service.cm.ManagedServiceFactory;
 import org.osgi.util.promise.Deferred;
 import org.osgi.util.promise.Promise;
@@ -34,11 +36,10 @@ import org.osgi.util.promise.Promises;
 import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
+import io.blesmol.netty.api.DynamicChannelHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.test.TestUtils.LatchChannelHandler;
 import io.blesmol.netty.test.TestUtils.LatchTestChannelHandlerFactory;
-import io.blesmol.netty.test.TestUtils.TestChannelHandlerFactory;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -64,6 +65,8 @@ public class ChannelInitializerMultiChannelsTest {
 
 	private static List<ServiceTracker<?, ?>> trackers = new CopyOnWriteArrayList<>();
 	private static ServiceRegistration<ManagedServiceFactory> factoryRegistration;
+	private static CountDownLatch configurationListenerLatch;
+	private static ServiceRegistration<ConfigurationListener> listenerRegistration;
 	private static ServiceTracker<ChannelInitializer, ChannelInitializer> initializerTracker;
 	private static ChannelInitializer initializer;
 
@@ -75,7 +78,6 @@ public class ChannelInitializerMultiChannelsTest {
 
 	// Expecting count downs equal to count * size of factory / handler lists
 	private static final CountDownLatch latch = new CountDownLatch(count * factoryPids.size());
-	private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	public static class LatchedChannelInboundHandlerAdapter extends ChannelInboundHandlerAdapter
 			implements LatchChannelHandler {
@@ -114,6 +116,12 @@ public class ChannelInitializerMultiChannelsTest {
 
 		Hashtable<String, Object> factoryProps = new Hashtable<>();
 
+		// Register configuration listiner
+
+		configurationListenerLatch = new CountDownLatch(count * factoryPids.size());
+		listenerRegistration = context.registerService(ConfigurationListener.class,
+				new TestConfigurationListener(configurationListenerLatch), null);
+
 		// Puposely use a non-sharable handler that also supports latches
 		LatchTestChannelHandlerFactory factory = new LatchTestChannelHandlerFactory(context,
 				LatchedChannelInboundHandlerAdapter.class, latch);
@@ -135,67 +143,102 @@ public class ChannelInitializerMultiChannelsTest {
 
 	@AfterClass
 	public static void afterClass() throws Exception {
-		executorService.execute(new Runnable() {
-			@Override
-			public void run() {
-				trackers.forEach(t -> t.close());
-			}
-		});
-
-		executorService.execute(new Runnable() {
-
-			private ConfigurationUtil configUtil = ChannelInitializerMultiChannelsTest.configUtil;
-
-			@Override
-			public void run() {
-				try {
-					configUtil.deleteConfigurationPids(configPids);
-				} catch (Exception e) {
-					e.printStackTrace();
-				} finally {
-					configUtil = null;
-				}
-			}
-		});
-
-		executorService.execute(new Runnable() {
-			@Override
-			public void run() {
-				factoryRegistration.unregister();
-			}
-		});
-
+		trackers.forEach(t -> t.close());
+		configUtil.deleteConfigurationPids(configPids);
 		configUtil = null;
+		factoryRegistration.unregister();
+		listenerRegistration.unregister();
+	}
+
+	private static class TestConfigurationListener extends AbstractTestConfigurationListener {
+	
+		public TestConfigurationListener(CountDownLatch latch) {
+			super(latch);
+		}
+
+		@Override
+		protected Promise<Boolean> isValidEvent(ConfigurationEvent event) {
+			boolean result = event.getFactoryPid().equals(factoryPid) && event.getType() == ConfigurationEvent.CM_UPDATED;
+			if (result) {
+				System.out.println(String.format("Event match: %s %s %s", event.getFactoryPid(), event.getPid(), event.getType()));
+			}
+			return Promises.resolved(result);
+		}
+
 	}
 
 	@Test
 	public void shouldSupportMultipleChannelsViaInitializer() throws Exception {
 
-		final List<Promise<Channel>> promisedChannels = new ArrayList<>();
+		// final List<Promise<EmbeddedChannel>> promisedChannels = new ArrayList<>();
+		final Map<String, Promise<EmbeddedChannel>> promisedChannels = new ConcurrentHashMap<>();
 
-		// Add services concurrently
+		// Add services serially
 		IntStream.range(0, count).forEach(i -> {
-			executorService.execute(new Runnable() {
-				@Override
-				public void run() {
-					Channel ch = new EmbeddedChannel(DefaultChannelId.newInstance());
-					ch.pipeline().addFirst(initializer);
-					promisedChannels.add(Promises.resolved(ch));
-				}
-			});
+			// executorService.execute(new Runnable() {
+			// @Override
+			// public void run() {
+			// Embedded channels require manually running tasks
+			EmbeddedChannel ch = new EmbeddedChannel(DefaultChannelId.newInstance());
+			ch.pipeline().addFirst(initializer);
+			ch.runPendingTasks();
+			System.out.println("Running pending tasks");
+			promisedChannels.put(ch.id().asLongText(), Promises.resolved(ch));
+			// }
+			// });
 		});
 
-		// let the dust settle
+		// Hacks ahead. Grab all of the dynamic handlers and their embedded channel
+		// promises. For each of these, on resolve run pending tasks on the channel.
+		// Because embedded channels require their loop to be ran and there's no
+		// way to directly poll these tasks so as to run them.
+
+		// First wait until we're configured
+		assertTrue(configurationListenerLatch.await(30, TimeUnit.SECONDS));
+
+		// Then, grab all of our dynamic handlers
+		String dynamicHandlersFilter = String.format("(&(%s=%s)(%s=%s)(%s=%s)(%s=%d))", Constants.OBJECTCLASS,
+				DynamicChannelHandler.class.getName(), Property.DynamicChannelHandler.APP_NAME, appName,
+				Property.DynamicChannelHandler.INET_HOST, hostname, Property.DynamicChannelHandler.INET_PORT, port);
+
+		final CountDownLatch configuredLatch = new CountDownLatch(count);
+		ServiceTracker<DynamicChannelHandler, DynamicChannelHandler> dynamicHandlersTracker = TestUtils
+				.getTracker(context, DynamicChannelHandler.class, dynamicHandlersFilter);
+
+		assertEquals(count, dynamicHandlersTracker.getTracked().size());
+
+		dynamicHandlersTracker.getTracked().entrySet().stream().forEach(es -> {
+			String channelId = (String) es.getKey().getProperty(Property.DynamicChannelHandler.CHANNEL_ID);
+			System.out.println("Looping on handler " + es.getValue());
+			es.getValue().handlersConfigured().onResolve(() -> {
+				configuredLatch.countDown();
+				final Promise<EmbeddedChannel> promisedChannel = promisedChannels.get(channelId);
+				promisedChannel.onResolve(() -> {
+					try {
+						System.out.println("Ran pending tasks via promise");
+						promisedChannel.getValue().runPendingTasks();
+					} catch (InvocationTargetException | InterruptedException e) {
+						e.printStackTrace();
+					}
+				});
+			});
+
+		});
+
+		// Dynamic handlers should have been configured
+		assertTrue(configuredLatch.await(5, TimeUnit.SECONDS));
+
+		// Handlers should have been added
 		assertTrue(latch.await(10, TimeUnit.SECONDS));
 
-		Promises.all(promisedChannels).getValue().forEach(c -> {
+		Promises.all(promisedChannels.values()).getValue().forEach(c -> {
 			// verify all handlers were added
 			System.out.println(String.format("Reviewing pipeline %s id %s with names %s", c.pipeline(),
 					c.id().asLongText(), c.pipeline().names()));
 			assertEquals(c.pipeline().names().size(), handlerNames.size() + 2/* dynamic & tail */);
 		});
 
-		promisedChannels.forEach(p -> {
+		promisedChannels.values().forEach(p -> {
 			try {
 				// Close the channels to free the dynamic handlers
 				p.getValue().close();

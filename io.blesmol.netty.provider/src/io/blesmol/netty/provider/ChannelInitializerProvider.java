@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,6 +42,9 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 	private volatile Optional<Map<String, Object>> extraProperties;
 	private final Map<String, Object> properties = new ConcurrentHashMap<>();
+
+	@Reference
+	ExecutorService executorService;
 
 	@Reference(name = ReferenceName.ChannelInitializer.EVENT_EXECUTOR_GROUP)
 	EventExecutorGroup eventExecutorGroup;
@@ -144,21 +148,17 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 		final String channelId = ch.id().asLongText();
 		channels.put(channelId, ch);
 
-		final String configurationPid = configUtil.createDynamicChannelHandlerConfig(channelId, config.appName(),
-				config.inetHost(), config.inetPort(), Arrays.asList(config.factoryPids()),
-				Arrays.asList(config.handlerNames()), extraProperties);
-		// org.osgi.service.cm.Configuration dynamicHandlerConfig = configAdmin
-		// .createFactoryConfiguration(io.blesmol.netty.api.Configuration.DYNAMIC_CHANNEL_HANDLER_PID,
-		// "?");
-		configurations.put(channelId, configurationPid);
-
-		// Update the config and cross our fingers
-		// final Dictionary<String, Object> props =
-		// configUtil.toDynamicChannelHandlerProperties(channelId,
-		// config.appName(), config.inetHost(), config.inetPort(), config.factoryPids(),
-		// config.handlerNames(), extraProperties);
-
-		// dynamicHandlerConfig.update(props);
+		executorService.execute(() -> {
+			String configurationPid;
+			try {
+				configurationPid = configUtil.createDynamicChannelHandlerConfig(channelId, config.appName(),
+						config.inetHost(), config.inetPort(), Arrays.asList(config.factoryPids()),
+						Arrays.asList(config.handlerNames()), extraProperties);
+				configurations.put(channelId, configurationPid);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		});
 
 		System.out.println(String.format("Initialized channel handler %s with channel ID %s", this, channelId));
 

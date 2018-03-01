@@ -3,6 +3,7 @@ package io.blesmol.netty.provider;
 import org.osgi.util.promise.Deferred;
 import org.osgi.util.promise.Promise;
 
+import io.blesmol.netty.api.DynamicHandlerEvents;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -17,18 +18,13 @@ public class DynamicOutboundChannelHandler extends ChannelOutboundHandlerAdapter
 	@Override
 	public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
 		handlerAddedDeferred.resolve(DynamicHandlerEvents.LAST_HANDLER_ADDED);
+		// TODO: replace w/ event admin call. then many can subscribe to the event
+		// and we don't need to shuttle promises around
 		// Fire the event on the pipeline to get to the first handler
 		ctx.channel().pipeline().fireUserEventTriggered(handlerAddedPromise);
 		System.out.println("Fired last handler added event in dynamic outbound handler on first context");
 		System.out.println("Removing dynamic outbound handler from pipeline");
 		ctx.channel().pipeline().remove(this);
-//		ctx.executor().execute(new Runnable() {
-//			@Override
-//			public void run() {
-//				System.out.println("Removing dynamic outbound handler from pipeline");
-//				ctx.channel().pipeline().remove(DynamicOutboundChannelHandler.this);
-//			}
-//		});
 	}
 
 	@Override

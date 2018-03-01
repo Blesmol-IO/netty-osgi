@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -32,12 +33,15 @@ import org.osgi.util.promise.Promises;
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.DynamicChannelHandler;
+import io.blesmol.netty.api.DynamicHandlerEvents;
 import io.blesmol.netty.api.EventExecutorGroupHandler;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.api.ReferenceName;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.EventExecutorGroup;
 
 @Component(configurationPid = Configuration.DYNAMIC_CHANNEL_HANDLER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, service = DynamicChannelHandler.class, immediate = true)
@@ -57,9 +61,6 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	// The promise is updated each time via a field updater
 	private volatile Deferred<DynamicHandlerEvents> outboundHandlerDeferred = new Deferred<DynamicHandlerEvents>();
 	private volatile Promise<?> outboundHandlerPromise = outboundHandlerDeferred.getPromise();
-	// private volatile Promise<?> outboundHandlerPromise = new
-	// Deferred<Void>().getPromise();
-
 	@SuppressWarnings("rawtypes")
 	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Promise> OUTBOUND_PROMISE = AtomicReferenceFieldUpdater
 			.newUpdater(DynamicChannelHandlerProvider.class, Promise.class, "outboundHandlerPromise");
@@ -67,6 +68,18 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Deferred> OUTBOUND_DEFERRED = AtomicReferenceFieldUpdater
 			.newUpdater(DynamicChannelHandlerProvider.class, Deferred.class, "outboundHandlerDeferred");
 
+	// Signifies when all handler configs have been tasked to be added
+	private volatile Deferred<Future<?>> maybeAddToPipelineDeferred = new Deferred<>();
+	private volatile Promise<Future<?>> maybeAddToPipelinePromise = maybeAddToPipelineDeferred.getPromise();
+
+	@SuppressWarnings("rawtypes")
+	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Deferred> MAYBE_ADD_PIPELINE_DEFERRED = AtomicReferenceFieldUpdater
+			.newUpdater(DynamicChannelHandlerProvider.class, Deferred.class, "maybeAddToPipelineDeferred");
+	@SuppressWarnings("rawtypes")
+	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Promise> MAYBE_ADD_PIPELINE_PROMISE = AtomicReferenceFieldUpdater
+			.newUpdater(DynamicChannelHandlerProvider.class, Promise.class, "maybeAddToPipelinePromise");
+
+	
 	// Needs volatile since it can be updated on modified method calls
 	// after activate method, possibly on a different thread.
 	private volatile Configuration.DynamicChannelHandler priorConfig;
@@ -89,7 +102,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	// OSGI FIELD AND METHOD REFERENCES
 	//
 
-	// FIXME: use the context executor instead
+	// Use the context executor for IO operations
 	@Reference
 	ExecutorService executor;
 
@@ -158,10 +171,12 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 		// If this handler was added, remove
 		if (keyedPipeline.remove(key) != null) {
-			promisedContext.then((p) -> removeFromPipeline(key, handler, promisedContext.getValue()));
+			System.out.println(String.format("Unsetting channel handler %s:%s in %s", key.factoryPid, key.handlerName, this));
+			promisedContext.then((p) -> removeFromPipeline(key, handler, p.getValue()));
 
 		}
 
+		System.out.println(String.format("Leaving unsetChannelHandler in %s", this));
 	}
 
 	// Currently a no-op so as not to unset and then set the reference.
@@ -171,8 +186,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	@Activate
 	void activate(Configuration.DynamicChannelHandler config, Map<String, Object> props) {
 
-		System.out.println("Activating " + this);
 		this.properties.putAll(props);
+		System.out.println("Activating " + this);
 
 		// Update extra properties
 		extraProperties = configUtil.toOptionalExtraProperties(props);
@@ -194,13 +209,6 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 		assert config.factoryPids().length == config.handlerNames().length;
 
 		System.out.println("Modifying " + this);
-		// Since we're being modified, first update our promises
-		// System.out.print("Resetting deferred. Old deferred was " +
-		// this.outboundHandlerDeferred);
-		// final Deferred<Void> newOutboundHandlerDeferred = new Deferred<>();
-		// OUTBOUND_DEFERRED.set(this, newOutboundHandlerDeferred);
-		// OUTBOUND_PROMISE.set(this, newOutboundHandlerDeferred.getPromise());
-		// System.out.println(". New deferred is " + this.outboundHandlerDeferred);
 
 		// Update our properties
 		this.properties.clear();
@@ -267,14 +275,23 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	private Promise<Void> addOrUpdateConfigurationsAndHandlers(final List<HandlerNameFactoryPid> keys) {
 
-		promises.add(
-				// First create the managed service factory configurations
-				maybeCreateFactoryConfigurations(keys)
-						// Then update the configurations with required properties
-						.then((p) -> maybeUpdateFactoryConfigurations(p.getValue(), keys, priorConfig.channelId()))
-						// And finally add to the pipeline if not already added
-						.then((p) -> maybeAddToPipeline(p.getValue(), promisedContext.getValue(), keys),
-								(f) -> f.getFailure().printStackTrace()));
+		// Ensure we're not blocking activate method by running on a different thread
+		executor.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				Promise<List<Void>> offerredPromises =
+						// First create the managed service factory configurations
+						maybeCreateFactoryConfigurations(keys)
+								// Then update the configurations with required properties
+								.then((p) -> maybeUpdateFactoryConfigurations(p.getValue(), keys, priorConfig.channelId()))
+								// And finally add to the pipeline if not already added
+								.then((p) -> maybeAddToPipeline(p.getValue(), promisedContext.getValue(), keys),
+										(f) -> f.getFailure().printStackTrace());
+				System.out.println("Offering promises to dequeue: " + offerredPromises);
+				promises.offer(offerredPromises);				
+			}
+		});
 		return Promises.resolved(null);
 	}
 
@@ -316,6 +333,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 			}
 		});
 
+		System.out.println("Finished maybeCreateFactoryConfigurations in " + this);
 		return results.getPromise();
 	}
 
@@ -361,12 +379,12 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 					}
 					promises.add(deferred.getPromise());
 				});
-				System.out.println("updateConfigsAndMaps resolving promise");
+				System.out.println("updateConfigsAndMaps resolving promise in " + this);
 				result.resolveWith(Promises.all(promises));
 
 			}
 		});
-
+		System.out.println("Finished maybeUpdateFactoryConfigurations in " + this);
 		return result.getPromise();
 	}
 
@@ -374,72 +392,97 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 			List<HandlerNameFactoryPid> keys) {
 
 		Deferred<List<Void>> result = new Deferred<>();
-		executor.execute(new Runnable() {
 
-			@Override
-			public void run() {
+		System.out.println("Starting maybeAddToPipeline in " + this);
+		maybeAddToPipelineDeferred.resolve(executor.submit(() -> {
+			System.out.println("Submitted maybeAddToPipeline in " + this);
+			final List<Promise<Void>> promises = new ArrayList<>();
+			final ChannelPipeline pipeline = context.pipeline();
+			final EventLoop channelEventLoop = context.channel().eventLoop();
+			final String channelId = context.channel().id().asLongText();
 
-				final List<Promise<Void>> promises = new ArrayList<>();
+			// NEEDS TO BE ORDERED
+			// The passed in keys are ordered correctly
+			// The list of handlers may not be ordered
+			keys.stream().forEachOrdered(it -> {
 
-				// NEEDS TO BE ORDERED
-				// The passed in keys are ordered correctly
-				// The list of handlers may not be ordered
-				keys.stream().forEachOrdered(it -> {
+				Promise<Void> promise = keyedPipeline.get(it);
 
-					Promise<Void> promise = keyedPipeline.get(it);
+				// The handler has not been added yet
+				if (promise == null) {
+					Deferred<Void> deferred = new Deferred<>();
+					final ChannelHandler handler = keysToHandlers.get(it);
+					final int idx = keys.indexOf(it);
+					final String handlerName = it.handlerName;
+					try {
+						// a null event executor group is the same as using the channel's event loop, so
+						// set it here
+						final EventExecutorGroup eventExecutorGroup = handler instanceof EventExecutorGroupHandler
+								? ((EventExecutorGroupHandler) handler).getEventExecutorGroup()
+								: channelEventLoop;
 
-					// The handler has not been added yet
-					if (promise == null) {
-						Deferred<Void> deferred = new Deferred<>();
-						final ChannelHandler handler = keysToHandlers.get(it);
-						final int idx = keys.indexOf(it);
-						final String handlerName = it.handlerName;
-						try {
-							// a null event executor group is the same as using this channel's event loop
-							EventExecutorGroup eventExecutorGroup = null;
-							if (handler instanceof EventExecutorGroupHandler) {
-								eventExecutorGroup = ((EventExecutorGroupHandler) handler).getEventExecutorGroup();
-							}
-							// If this is the first one, add after this dynamic handler
-							if (idx == 0) {
-								context.pipeline().addAfter(eventExecutorGroup, DynamicChannelHandler.HANDLER_NAME,
-										handlerName, handler);
+						Runnable toAdd = null;
+						// If this is the first handler, add after this dynamic handler
+						if (idx == 0) {
+							toAdd = () -> {
+								pipeline.addAfter(eventExecutorGroup, DynamicChannelHandler.HANDLER_NAME, handlerName,
+										handler);
 								System.out.println(
 										String.format("Added handler '%s' after dynamic handler", handlerName));
-							}
-							// Else, use the previously added (just now or before) handler as a guide
-							else {
+								deferred.resolve(null);
+							};
+						}
+						// Otherwise, use the previously added (just now or before) handler as a guide
+						else {
+							toAdd = () -> {
 								String priorHandlerName = keys.get(idx - 1).handlerName;
-								context.pipeline().addAfter(eventExecutorGroup, priorHandlerName, handlerName, handler);
+								pipeline.addAfter(eventExecutorGroup, priorHandlerName, handlerName, handler);
 								System.out.println(
 										String.format("Added handler '%s' after '%s'", handlerName, priorHandlerName));
-							}
-							deferred.resolve(null);
-						} catch (Exception e) {
-							e.printStackTrace();
-							deferred.fail(e);
+								deferred.resolve(null);
+							};
 						}
-						promise = deferred.getPromise();
-						keyedPipeline.put(it, promise);
+
+						// Since we're using the channel's event loop to execute the runnable, we
+						// ensure adding handlers sequentially.
+						System.out.println(String.format("Executing runnable to add handler %s on channel id %s via %s", handlerName, channelId, this));
+						channelEventLoop.execute(toAdd);
+
+						// deferred.resolve(null);
+					} catch (Exception e) {
+						e.printStackTrace();
+						deferred.fail(e);
 					}
-					promises.add(promise);
-				});
+					promise = deferred.getPromise();
+					keyedPipeline.put(it, promise);
+				}
+				promises.add(promise);
+			});
 
-				// Add the outbound dynamic handler, which signals us when it's
-				// added, using our executor so as to receive events whilst still being added
+			// Add the outbound dynamic handler, which signals us when it's
+			// added, using our executor so as to receive events whilst still being added
+			// Ensure it's added to via event loop of the channel, but use our executor
+			channelEventLoop.execute(() -> {
 				System.out.println("Adding outbound dynamic handler");
-				context.pipeline().addLast(context.executor(), DynamicOutboundChannelHandler.HANDLER_NAME,
+				pipeline.addLast(context.executor(), DynamicOutboundChannelHandler.HANDLER_NAME,
 						new DynamicOutboundChannelHandler());
+			});
 
-				// Now allow reading of channel
+			// Now allow reading of channel
+			channelEventLoop.execute(() -> {
 				System.out.println(
 						String.format("Enabling auto read on channel id %s", context.channel().id().asLongText()));
 				context.channel().config().setAutoRead(true);
-				// and resolve
-				result.resolveWith(Promises.all(promises));
-			}
-		});
+			});
+			// and resolve
+			result.resolveWith(Promises.all(promises));
+		}));
+		
+		// Update promise
+		MAYBE_ADD_PIPELINE_PROMISE.set(this, maybeAddToPipelineDeferred.getPromise());
+		MAYBE_ADD_PIPELINE_DEFERRED.set(this, new Deferred<Future<?>>());
 
+		System.out.println("Finished maybeAddToPipeline in " + this);
 		return result.getPromise();
 	}
 
@@ -457,6 +500,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 			e.printStackTrace();
 			deferred.fail(e);
 		}
+		System.out.println("Finished removeFromPipeline in " + this);
 		return deferred.getPromise();
 	}
 
@@ -473,6 +517,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 				keys.parallelStream().forEach((k) -> {
 					final Deferred<Void> deferred = new Deferred<>();
 					try {
+						System.out.println(String.format("Deleting factory configuration for %s:%s", k.factoryPid, k.handlerName));
 						org.osgi.service.cm.Configuration c = configurations.remove(k).getValue();
 						c.delete();
 						deferred.resolve(null);
@@ -482,15 +527,25 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 					}
 					deletedConfigs.add(deferred.getPromise());
 				});
+				System.out.println(String.format("Resolved deleteFactoryConfigurations for " + DynamicChannelHandlerProvider.this));
 				results.resolveWith(Promises.all(deletedConfigs));
 			}
 		});
-
+		System.out.println("Finished deleteFactoryConfigurations in " + this);
 		return results.getPromise();
 	}
 
 	//
-	// SERVICE METHODS
+	// Dynamic handler methods
+	//
+
+	@Override
+	public Promise<Future<?>> handlersConfigured() {
+		return maybeAddToPipelinePromise;
+	}
+
+	//
+	// NETTY SERVICE METHODS
 	//
 
 	@Override
@@ -510,7 +565,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		System.out.println(String.format("%s read called with promise %s", this, outboundHandlerPromise)); 
+		System.out.println(String.format("%s read called with promise %s", this, outboundHandlerPromise));
 		outboundHandlerPromise.onResolve(new Runnable() {
 			@Override
 			public void run() {
@@ -527,7 +582,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	@Override
 	public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-		System.out.println(String.format("%s read complete called with promise %s", this, outboundHandlerPromise)); 
+		System.out.println(String.format("%s read complete called with promise %s", this, outboundHandlerPromise));
 		outboundHandlerPromise.onResolve(new Runnable() {
 			@Override
 			public void run() {
@@ -552,6 +607,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 			try {
 				@SuppressWarnings("unchecked")
 				Promise<DynamicHandlerEvents> eventPromise = (Promise<DynamicHandlerEvents>) evt;
+				System.out.print(String.format("Getting event promise in " + this));
 				switch (eventPromise.getValue()) {
 				case LAST_HANDLER_ADDED:
 					System.out.print(String.format("Old promise: %s", outboundHandlerPromise));
@@ -658,7 +714,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	@Override
 	public String toString() {
-		return String.format("Dynamic handler [%s]", this.properties.get(Constants.SERVICE_PID));
+		return String.format("Dynamic handler [%s] on channelId: %s", this.properties.get(Constants.SERVICE_PID),
+				this.properties.get(Property.DynamicChannelHandler.CHANNEL_ID));
 	}
 
 }

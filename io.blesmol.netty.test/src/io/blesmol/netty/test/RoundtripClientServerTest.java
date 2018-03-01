@@ -1,9 +1,7 @@
 package io.blesmol.netty.test;
 
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
@@ -26,14 +24,10 @@ import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.cm.ManagedServiceFactory;
 
 import io.blesmol.netty.api.ConfigurationUtil;
-import io.blesmol.netty.api.NettyClient;
-import io.blesmol.netty.api.Property;
 import io.blesmol.netty.test.TestUtils.LatchChannelHandler;
 import io.blesmol.netty.test.TestUtils.LatchTestChannelHandlerFactory;
 import io.blesmol.netty.test.TestUtils.TestClientHandler;
 import io.blesmol.netty.test.TestUtils.TestServerHandler;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -42,10 +36,8 @@ public class RoundtripClientServerTest {
 	final BundleContext context = FrameworkUtil.getBundle(RoundtripClientServerTest.class).getBundleContext();
 
 	final ExecutorService executorService = Executors.newCachedThreadPool();
-	
-	private ConfigurationUtil configUtil;
 
-	private NettyClient client;
+	private ConfigurationUtil configUtil;
 
 	List<String> configPids;
 
@@ -55,12 +47,10 @@ public class RoundtripClientServerTest {
 	static final String clientFactoryPid = clientAppName;
 	static final List<String> serverFactoryPids = Arrays.asList(serverFactoryPid);
 	static final List<String> clientFactoryPids = Arrays.asList(clientFactoryPid);
-	static final String serverHandlerName = "gibson";
-	static final String clientHandlerName = "thePlague";
+	static final String serverHandlerName = "serverHandler";
+	static final String clientHandlerName = "clientHandler";
 	static final List<String> serverHandlerNames = Arrays.asList(serverHandlerName);
 	static final List<String> clientHandlerNames = Arrays.asList(clientHandlerName);
-	static final String expectedKey = "hackThePlanet";
-	static final String expectedValue = "cookieMonster";
 
 	@Before
 	public void before() throws Exception {
@@ -74,23 +64,11 @@ public class RoundtripClientServerTest {
 
 	@After
 	public void after() throws Exception {
-		executorService.execute(new Runnable() {
-			
-			private ConfigurationUtil configUtil = RoundtripClientServerTest.this.configUtil;
-
-			@Override
-			public void run() {
-				try {
-					configUtil.deleteConfigurationPids(configPids);
-				} catch (Exception e) {
-					e.printStackTrace();
-				} finally {
-					configUtil = null;
-				}
-				
-			}
-		});
-		configUtil = null;
+		try {
+			configUtil.deleteConfigurationPids(configPids);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static class LatchTestServerHandler extends TestServerHandler implements LatchChannelHandler {
@@ -99,8 +77,11 @@ public class RoundtripClientServerTest {
 		@Override
 		public void channelReadComplete(ChannelHandlerContext ctx) {
 			super.channelReadComplete(ctx);
-			if (latch != null)
+			if (latch != null) {
 				latch.countDown();
+				System.out.println("Decremented server latch in channel read");
+			}
+
 		}
 
 		@Override
@@ -120,22 +101,12 @@ public class RoundtripClientServerTest {
 			this.latch = latch;
 
 		}
-//
-//		@Override
-//		public void channelActive(ChannelHandlerContext ctx) {
-//			super.channelActive(ctx);
-//
-//			if (latch != null) {
-//				System.out.println("Decrementing latch");
-//				latch.countDown();
-//			}
-//		}
 
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
 			super.channelRead(ctx, msg);
 			if (latch != null) {
-				System.out.println("Decrementing latch");
+				System.out.println("Decrementing client latch");
 				latch.countDown();
 			}
 		}
@@ -145,84 +116,46 @@ public class RoundtripClientServerTest {
 	@Test
 	public void shouldRoundtripMessage() throws Exception {
 
-		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> serverRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(null);
+		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> serverRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(
+				null);
 		final CountDownLatch serverLatch = new CountDownLatch(1);
 
 		executorService.execute(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				Hashtable<String, Object> serverHandlerProps = new Hashtable<>();
 				LatchTestChannelHandlerFactory serverHandlerFactory = new LatchTestChannelHandlerFactory(context,
 						LatchTestServerHandler.class, serverLatch);
 				serverHandlerProps.put(Constants.SERVICE_PID, serverFactoryPid);
-				serverRegistration.set(context
-						.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps));
+				serverRegistration.set(
+						context.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps));
 			}
 		});
-		// Register server handler factory, which will be called
-//		Hashtable<String, Object> serverHandlerProps = new Hashtable<>();
-//		CountDownLatch serverLatch = new CountDownLatch(1);
-//		LatchTestChannelHandlerFactory serverHandlerFactory = new LatchTestChannelHandlerFactory(context,
-//				LatchTestServerHandler.class, serverLatch);
-//		serverHandlerProps.put(Constants.SERVICE_PID, serverFactoryPid);
-//		ServiceRegistration<ManagedServiceFactory> serverRegistration = context
-//				.registerService(ManagedServiceFactory.class, serverHandlerFactory, serverHandlerProps);
 
-		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> clientRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(null);
+		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> clientRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(
+				null);
 		final CountDownLatch clientLatch = new CountDownLatch(1);
 
 		// Register client handler factory, which will be called
 		executorService.execute(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				Hashtable<String, Object> clientHandlerProps = new Hashtable<>();
 				LatchTestChannelHandlerFactory clientHandlerFactory = new LatchTestChannelHandlerFactory(context,
 						LatchTestClientHandler.class, clientLatch);
 				clientHandlerProps.put(Constants.SERVICE_PID, clientFactoryPid);
-				clientRegistration.set(context
-						.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps));
-				
+				clientRegistration.set(
+						context.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps));
+
 			}
 		});
 
-//
-//		// Run client and register latch
-//		final CountDownLatch connectLatch = new CountDownLatch(1);
-//
-//		// Be quick, get the client! It may disappear shortly
-//		String clientFilter = String.format("(&(%s=%s)(%s=%s))", Property.NettyClient.APP_NAME, clientAppName,
-//				Constants.OBJECTCLASS, NettyClient.class.getName());
-//		client = TestUtils.getService(context, NettyClient.class, 3000, clientFilter);
-//		client.promise().onResolve(new Runnable() {
-//
-//			@Override
-//			public void run() {
-//				System.out.println("resolved client connection");
-//				try {
-//					client.promise().getValue().addListener(new ChannelFutureListener() {
-//						@Override
-//						public void operationComplete(ChannelFuture future) throws Exception {
-//							if (future.isSuccess()) {
-//								connectLatch.countDown();
-//							} else {
-//								throw new RuntimeException(future.cause());
-//							}
-//						}
-//					});
-//				} catch (InvocationTargetException | InterruptedException e) {
-//					e.printStackTrace();
-//					fail();
-//				}
-//
-//			}
-//		});
-//
-//		// Verify
-//		assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
-		assertTrue(serverLatch.await(10, TimeUnit.SECONDS));
-		assertTrue(clientLatch.await(10, TimeUnit.SECONDS));
+
+		// // Verify
+		assertTrue(serverLatch.await(30, TimeUnit.SECONDS));
+		assertTrue(clientLatch.await(30, TimeUnit.SECONDS));
 
 		// Cleanup
 		serverRegistration.get().unregister();

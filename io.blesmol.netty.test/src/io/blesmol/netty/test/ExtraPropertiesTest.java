@@ -72,25 +72,11 @@ public class ExtraPropertiesTest {
 	@After
 	public void after() throws Exception {
 
-		executor.execute(new Runnable() {
-
-			private ConfigurationUtil configUtil = ExtraPropertiesTest.this.configUtil;
-
-			@Override
-			public void run() {
-				try {
-					configUtil.deleteConfigurationPids(configPids);
-				} catch (Exception e) {
-					e.printStackTrace();
-				} finally {
-					configUtil = null;
-				}
-				
-
-			}
-		});
-
-		configUtil = null;
+		try {
+			configUtil.deleteConfigurationPids(configPids);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	static class ExtraTestServerHandler extends TestServerHandler implements ExtraChannelHandler {
@@ -123,20 +109,20 @@ public class ExtraPropertiesTest {
 		});
 
 		final CountDownLatch clientLatch = new CountDownLatch(1);
-		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> clientRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(null);
-		
+		final AtomicReference<ServiceRegistration<ManagedServiceFactory>> clientRegistration = new AtomicReference<ServiceRegistration<ManagedServiceFactory>>(
+				null);
+
 		executor.execute(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				Hashtable<String, Object> clientHandlerProps = new Hashtable<>();
-				ExtraPropertiesChannelHandlerFactory clientHandlerFactory = new ExtraPropertiesChannelHandlerFactory(context,
-						ExtraTestClientHandler.class, expectedKey, expectedValue, clientLatch);
+				ExtraPropertiesChannelHandlerFactory clientHandlerFactory = new ExtraPropertiesChannelHandlerFactory(
+						context, ExtraTestClientHandler.class, expectedKey, expectedValue, clientLatch);
 				clientHandlerProps.put(Constants.SERVICE_PID, clientFactoryPid);
-				clientRegistration.set(context
-						.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps));
+				clientRegistration.set(
+						context.registerService(ManagedServiceFactory.class, clientHandlerFactory, clientHandlerProps));
 
-				
 			}
 		});
 		// Register client handler factory, which will be called

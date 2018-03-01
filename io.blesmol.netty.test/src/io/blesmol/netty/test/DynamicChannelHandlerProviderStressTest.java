@@ -3,15 +3,18 @@ package io.blesmol.netty.test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,7 +24,12 @@ import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.cm.ConfigurationAdmin;
+import org.osgi.service.cm.ConfigurationEvent;
+import org.osgi.service.cm.ConfigurationListener;
 import org.osgi.service.cm.ManagedServiceFactory;
+import org.osgi.util.promise.Deferred;
+import org.osgi.util.promise.Promise;
+import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.DynamicChannelHandler;
@@ -49,77 +57,118 @@ public class DynamicChannelHandlerProviderStressTest {
 	private final int port = 0; // ephemeral
 	private final int count = 500;
 	private final String stressTestHandler = "stressTestHandler";
-	private final List<String> factoryPids = IntStream.range(0, count).mapToObj((i) -> factoryPid).collect(Collectors.toList());
-	private final List<String> handlerNames = IntStream.range(0, count).mapToObj((i) -> stressTestHandler + i).collect(Collectors.toList());
+	private final List<String> factoryPids = IntStream.range(0, count).mapToObj((i) -> factoryPid)
+			.collect(Collectors.toList());
+	private final List<String> handlerNames = IntStream.range(0, count).mapToObj((i) -> stressTestHandler + i)
+			.collect(Collectors.toList());
 	private final EmbeddedChannel ch = new EmbeddedChannel(DefaultChannelId.newInstance());
 	private final String channelId = ch.id().asLongText();
+	
+	private CountDownLatch configurationListenerLatch;
+	private ServiceRegistration<ConfigurationListener> listenerRegistration;
 
+	private ServiceTracker<DynamicChannelHandler, DynamicChannelHandler> handlerTracker;
+
+	private static class TestConfigurationListener extends AbstractTestConfigurationListener {
+		
+		private final Promise<String> pidPromise;
+		public TestConfigurationListener(Promise<String> pidPromise, CountDownLatch latch) {
+			super(latch);
+			this.pidPromise = pidPromise;
+		}
+
+		@Override
+		protected Promise<Boolean> isValidEvent(ConfigurationEvent event) {
+			Deferred<Boolean> result = new Deferred<>();
+			
+			pidPromise.onResolve(() -> {
+				String pid;
+				try {
+					pid = pidPromise.getValue();
+					result.resolve(event.getPid().equals(pid) && event.getType() == ConfigurationEvent.CM_UPDATED);
+				} catch (InvocationTargetException | InterruptedException e) {
+					result.fail(e);
+					e.printStackTrace();
+				}
+			});
+			return result.getPromise();
+		}
+
+	}
+
+	
 	@Before
 	public void before() throws Exception {
 
-		configUtil =  TestUtils.getService(context, ConfigurationUtil.class, 250);
-		configAdmin =  TestUtils.getService(context, ConfigurationAdmin.class, 250);
+		configUtil = TestUtils.getService(context, ConfigurationUtil.class, 250);
+		configAdmin = TestUtils.getService(context, ConfigurationAdmin.class, 250);
 
-		// XXX Maybe try out manual configs again? via config admin
 
-//		Dictionary<String, Object> props = configUtil.toDynamicChannelHandlerProperties(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty());
-//		configuration = configAdmin.createFactoryConfiguration(Configuration.DYNAMIC_CHANNEL_HANDLER_PID, "?");
-//		configuration.update(props);
+		Deferred<String> pid = new Deferred<>();
+		configurationListenerLatch = new CountDownLatch(1);
+		listenerRegistration = context.registerService(ConfigurationListener.class,
+				new TestConfigurationListener(pid.getPromise(), configurationListenerLatch), null);
 		
-		configurationPids.add(configUtil.createDynamicChannelHandlerConfig(channelId, appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
-//		configurationPids.addAll(configUtil.createNettyServer(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
-//		configurationPids.addAll(configUtil.createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, Optional.empty()));
-
-		String filter = String.format("(&(%s=%s)(%s=%s))", //(%s=%d)(%s=%s))",
-				//
-				Constants.OBJECTCLASS, DynamicChannelHandler.class.getName(),
-//				Property.DynamicChannelHandler.CHANNEL_ID, channelId,
-//				Property.DynamicChannelHandler.INET_HOST, hostname,
-//				Property.DynamicChannelHandler.INET_PORT, port,
-//				Property.DynamicChannelHandler.APP_NAME, appName);
-				Property.DynamicChannelHandler.CHANNEL_ID, channelId);
-
-////		ChannelInitializer channelInitializer = TestUtils.getService(context, ChannelInitializer.class, 2000);
-//		ch.pipeline().addFirst(channelInitializer);
-		dynamicHandler = TestUtils.getService(context, DynamicChannelHandler.class, 3000);
+		String configurationPid = configUtil.createDynamicChannelHandlerConfig(channelId, appName, hostname, port,
+				factoryPids, handlerNames, Optional.empty());
+		pid.resolve(configurationPid);
+		configurationPids.add(configurationPid);
+		
+		assertTrue(configurationListenerLatch.await(5000, TimeUnit.SECONDS));
+		
+		String filter = String.format("(&(%s=%s)(%s=%s))", Property.DynamicChannelHandler.APP_NAME, appName, Property.DynamicChannelHandler.CHANNEL_ID, channelId);
+		handlerTracker = TestUtils.getTracker(context, DynamicChannelHandler.class, filter);
+		dynamicHandler = handlerTracker.getService();
 		assertNotNull(dynamicHandler);
+	}
+
+	@After
+	public void after() {
+		handlerTracker.close();
+		listenerRegistration.unregister();
+		try {
+			configUtil.deleteConfigurationPids(configurationPids);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Test
 	public void shouldAddRemoveHandlers() throws Exception {
 
-
 		// Add dynamic handler to channel.
 		// TODO: add 1000 channels and test here
-		ch.pipeline().addFirst(DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
+		CountDownLatch embeddedHandlerLatch = new CountDownLatch(1);
+		TestEmbeddedChannelHandler pseudo = new TestEmbeddedChannelHandler(embeddedHandlerLatch);
+		ch.pipeline().addFirst(TestEmbeddedChannelHandler.HANDLER_NAME, pseudo);
+		ch.pipeline().addAfter(TestEmbeddedChannelHandler.HANDLER_NAME, DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
 
-		// 
 		final CountDownLatch updatedLatch = new CountDownLatch(count);
 		final CountDownLatch deletedLatch = new CountDownLatch(count);
 
 		// Register server handler factory, which will be called by the dynamic handler
 		Hashtable<String, Object> props = new Hashtable<>();
-		TestChannelHandlerFactory factory = new TestChannelHandlerFactory(context, SkeletonChannelHandler.class, updatedLatch, deletedLatch);
+		TestChannelHandlerFactory factory = new TestChannelHandlerFactory(context, SkeletonChannelHandler.class,
+				updatedLatch, deletedLatch);
 		props.put(Constants.SERVICE_PID, factoryPid);
-		ServiceRegistration<ManagedServiceFactory> sr = context.registerService(ManagedServiceFactory.class, factory, props);
+		ServiceRegistration<ManagedServiceFactory> sr = context.registerService(ManagedServiceFactory.class, factory,
+				props);
 
-		// Wait for a couple seconds until the dust settles
-		assertTrue(updatedLatch.await(5, TimeUnit.SECONDS));
+		// Wait for stuff
+		assertTrue(updatedLatch.await(30, TimeUnit.SECONDS));
+		Future<?> future = dynamicHandler.handlersConfigured().getValue();
+		future.get(5000, TimeUnit.SECONDS);
 
-		// Wait until the specified one is found, else 
-		// we might delete all before adding
-		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s))",
-				//
-				Constants.OBJECTCLASS, SkeletonChannelHandler.class.getName(),
-				Property.ChannelHandler.HANDLER_NAME, String.format("%s%s", stressTestHandler, count/200),
-				ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid
-		);
-		// ignore return value, just using it to wait for service
-		TestUtils.getService(context, SkeletonChannelHandler.class, 5000, filter);
+		// Allow embedded pipeline tasks to run after all everything is added
+		System.out.println("Running pending tasks");
+		ch.runPendingTasks();
+
+		// await latch or fail
+		assertTrue(embeddedHandlerLatch.await(30, TimeUnit.SECONDS));
 
 		// Delete the config
 		configUtil.deleteConfigurationPids(configurationPids);
-		assertTrue(deletedLatch.await(10, TimeUnit.SECONDS));
+		assertTrue(deletedLatch.await(60, TimeUnit.SECONDS));
 		sr.unregister();
 	}
 

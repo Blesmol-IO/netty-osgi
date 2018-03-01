@@ -1,4 +1,4 @@
-package io.blesmol.netty.provider;
+package io.blesmol.netty.api;
 
 public enum DynamicHandlerEvents {
 

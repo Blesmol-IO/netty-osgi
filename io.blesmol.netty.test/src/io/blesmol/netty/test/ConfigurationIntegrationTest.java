@@ -19,7 +19,6 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
-import org.osgi.framework.ServiceReference;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.NettyServer;
@@ -85,20 +84,7 @@ public class ConfigurationIntegrationTest {
 			}
 		});
 
-		// Delete the config and wait so the service manager factory can
-		// unregister the service
-		executorService.execute(new Runnable() {
-			
-			@Override
-			public void run() {
-				try {
-					configUtil.deleteConfigurationPids(pids);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				
-			}
-		});
+		configUtil.deleteConfigurationPids(pids);
 
 //		context.ungetService(reference);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
