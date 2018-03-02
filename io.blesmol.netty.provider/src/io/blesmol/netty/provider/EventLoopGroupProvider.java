@@ -36,6 +36,9 @@ public class EventLoopGroupProvider extends NioEventLoopGroup {
 	@Override
 	protected EventLoop newChild(Executor executor, Object... args) throws Exception {
 		final EventLoop eventLoop = super.newChild(executor, args);
+		eventLoop.terminationFuture().addListener((f) -> {
+			System.out.println(String.format("Event loop %s terminated with future %s", eventLoop, f));
+		});
 		System.out.println(String.format("Creating new event loop %s", eventLoop));
 		return eventLoop;
 	}
