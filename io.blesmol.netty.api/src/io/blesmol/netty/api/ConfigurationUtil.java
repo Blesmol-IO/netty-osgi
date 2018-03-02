@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.osgi.annotation.versioning.ProviderType;
 
+// TODO: consider a builder pattern
 @ProviderType
 public interface ConfigurationUtil {
 
@@ -18,10 +19,10 @@ public interface ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
 
 	List<String> createNettyClient(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName) throws Exception;
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName, Optional<Boolean> shutdownGroup) throws Exception;
 
 	String createNettyClientConfig(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName) throws Exception;
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName, Optional<Boolean> shutdownGroup) throws Exception;
 
 	String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
 
