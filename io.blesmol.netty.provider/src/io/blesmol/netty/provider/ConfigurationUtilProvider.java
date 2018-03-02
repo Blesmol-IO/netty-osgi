@@ -100,15 +100,17 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
 		props.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
 		props.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
-		return createConfiguration(io.blesmol.netty.api.Configuration.EVENT_LOOP_GROUP, props);
+		return createConfiguration(NettyApi.EventLoopGroup.PID, props);
 	}
 
 	@Override
-	public String createEventExecutorGroup(String appName, String groupName) throws Exception {
+	public String createEventExecutorGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.EventExecutorGroup.APP_NAME, appName);
-		props.put(Property.EventExecutorGroup.GROUP_NAME, groupName);
-		return createConfiguration(io.blesmol.netty.api.Configuration.EVENT_EXECUTOR_GROUP, props);
+		props.put(NettyApi.EventExecutorGroup.APP_NAME, appName);
+		props.put(NettyApi.EventExecutorGroup.INET_HOST, inetHost);
+		props.put(NettyApi.EventExecutorGroup.INET_PORT, inetPort);
+		props.put(NettyApi.EventExecutorGroup.GROUP_NAME, groupName);
+		return createConfiguration(NettyApi.EventExecutorGroup.PID, props);
 	}
 
 	@Override
@@ -116,7 +118,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
 
 		final List<String> results = new ArrayList<>();
-		results.add(createEventExecutorGroup(appName, ReferenceName.ChannelInitializer.EVENT_EXECUTOR_GROUP));
+		results.add(createEventExecutorGroup(appName, hostname, port, ReferenceName.ChannelInitializer.EVENT_EXECUTOR_GROUP));
 		results.add(
 				createChannelInitializerConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties));
 		return results;

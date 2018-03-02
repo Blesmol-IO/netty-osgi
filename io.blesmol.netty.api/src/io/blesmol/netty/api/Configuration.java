@@ -13,22 +13,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  */
 public interface Configuration {
 
-	String EVENT_LOOP_GROUP = "io.netty.channel.EventLoopGroup";
-
-	@interface EventLoopGroup {
-		String appName();
-
-		String groupName();
-	}
-
-	String EVENT_EXECUTOR_GROUP = "io.netty.util.concurrent.EventExecutorGroup";
-
-	@interface EventExecutorGroup {
-		String appName();
-
-		String groupName();
-	}
-
 	String NETTY_CLIENT_PID = "io.blesmol.netty.api.NettyClient";
 
 	@interface NettyClient {

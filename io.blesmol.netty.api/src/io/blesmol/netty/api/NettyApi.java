@@ -12,9 +12,28 @@ public interface NettyApi {
 
 		String appName();
 
+		String INET_HOST = "inetHost";
+
+		String inetHost();
+
+		String INET_PORT = "inetPort";
+
+		int inetPort();
+		
 		String GROUP_NAME = "groupName";
 
 		String groupName();
+	}
+	
+
+	@interface EventExecutorGroup {
+		
+		String PID = "io.netty.util.concurrent.EventExecutorGroup";
+		String NAME = "nettyEventExecutorGroup";
+
+		String APP_NAME = NettyApi.APP_NAME;
+
+		String appName();
 
 		String INET_HOST = "inetHost";
 
@@ -23,5 +42,10 @@ public interface NettyApi {
 		String INET_PORT = "inetPort";
 
 		int inetPort();
+		
+		String GROUP_NAME = "groupName";
+
+		String groupName();
 	}
+
 }
