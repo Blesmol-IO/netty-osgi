@@ -23,7 +23,7 @@ public interface ConfigurationUtil {
 	String createNettyClientConfig(String appName, String hostname, Integer port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName) throws Exception;
 
-	String createEventLoopGroup(String appName, String groupName) throws Exception;
+	String createEventLoopGroup(String appName, String hostname, Integer port, String groupName) throws Exception;
 
 	String createEventExecutorGroup(String appName, String groupName) throws Exception;
 

@@ -1,5 +1,6 @@
 package io.blesmol.netty.api;
 
+@Deprecated
 // TODO: auto-generate from Configuration interfaces
 public interface Property {
 

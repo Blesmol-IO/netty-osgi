@@ -22,6 +22,7 @@ import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 
 import io.blesmol.netty.api.ConfigurationUtil;
+import io.blesmol.netty.api.NettyApi;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.api.ReferenceName;
 
@@ -70,8 +71,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 		final List<String> results = new ArrayList<>();
 		results.add(createServerBootstrapProvider(appName, hostname, port));
-		results.add(createEventLoopGroup(appName, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP));
-		results.add(createEventLoopGroup(appName, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP));
+		results.add(createEventLoopGroup(appName, hostname, port, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP));
+		results.add(createEventLoopGroup(appName, hostname, port, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP));
 		results.addAll(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
 		results.add(createNettyServerConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties));
 		return results;
@@ -85,7 +86,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 		final List<String> results = new ArrayList<>();
 		results.add(createBootstrapProvider(appName, hostname, port, serverAppName));
-		results.add(createEventLoopGroup(appName, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
+		results.add(createEventLoopGroup(appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
 		results.addAll(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
 		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties,
 				serverAppName));
@@ -93,10 +94,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
-	public String createEventLoopGroup(String appName, String groupName) throws Exception {
+	public String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.EventLoopGroup.APP_NAME, appName);
-		props.put(Property.EventLoopGroup.GROUP_NAME, groupName);
+		props.put(NettyApi.EventLoopGroup.APP_NAME, appName);
+		props.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
+		props.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
+		props.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
 		return createConfiguration(io.blesmol.netty.api.Configuration.EVENT_LOOP_GROUP, props);
 	}
 
@@ -144,7 +147,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 		// Target dynamic channel handler
 		final String handlerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d))", Property.DynamicChannelHandler.APP_NAME,
-				appName, Property.DynamicChannelHandler.INET_HOST, hostname, Property.DynamicChannelHandler.INET_PORT, port);
+				appName, Property.DynamicChannelHandler.INET_HOST, hostname, Property.DynamicChannelHandler.INET_PORT,
+				port);
 		props.put(ReferenceName.ChannelInitializer.CHANNEL_HANDLERS_TARGET, handlerTarget);
 
 		// Target event executor group
@@ -205,11 +209,9 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event groups at the application level currently
-		String bossGroupTarget = String.format("(&(%s=%s)(%s=%s))", Property.EventLoopGroup.APP_NAME, appName,
-				Property.EventLoopGroup.GROUP_NAME, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
+		String bossGroupTarget = eventGroupTarget(appName, hostname, port, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP_TARGET, bossGroupTarget);
-		String workerGroupTarget = String.format("(&(%s=%s)(%s=%s))", Property.EventLoopGroup.APP_NAME, appName,
-				Property.EventLoopGroup.GROUP_NAME, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
+		String workerGroupTarget = eventGroupTarget(appName, hostname, port, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP_TARGET, workerGroupTarget);
 
 		// Server bootstrap target
@@ -253,13 +255,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				listFilter(Property.ChannelInitializer.HANDLER_NAMES, handlerNames));
 		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
-		// Target event group at the application level currently
-		// If the server app name is present, use that instead of this app name, so as
-		// to chain off the
-		// server's event loop
-		String eventGroupTarget = String.format("(&(%s=%s)(%s=%s))", Property.EventLoopGroup.APP_NAME,
-				serverAppName.orElse(appName), Property.EventLoopGroup.GROUP_NAME,
-				ReferenceName.NettyClient.EVENT_LOOP_GROUP);
+		// Target event group
+		String eventGroupTarget = eventGroupTarget(appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
 
 		// Bootstrap target, using optional server app name too
@@ -280,6 +277,13 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		return createConfiguration(io.blesmol.netty.api.Configuration.NETTY_CLIENT_PID, props);
 	}
 
+	private String eventGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {
+		return String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
+				NettyApi.EventLoopGroup.APP_NAME,
+				appName, NettyApi.EventLoopGroup.INET_HOST, inetHost, NettyApi.EventLoopGroup.INET_PORT, inetPort,
+				NettyApi.EventLoopGroup.GROUP_NAME, groupName);
+	}
+	
 	@Override
 	public String createServerBootstrapProvider(String appName, String hostname, int port) throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
