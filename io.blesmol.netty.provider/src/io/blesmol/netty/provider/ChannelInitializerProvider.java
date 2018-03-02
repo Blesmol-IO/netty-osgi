@@ -34,6 +34,12 @@ import io.netty.util.concurrent.EventExecutorGroup;
 @Component(service = ChannelInitializer.class, configurationPid = Configuration.CHANNEL_INITIALIZER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
 public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
+	// Set in activate
+	private String pid;
+	private String appName;
+	private String inetHost;
+	private int inetPort;
+	
 	// Cross-thread access
 	private volatile Configuration.ChannelInitializer config;
 
@@ -41,7 +47,6 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	private final Map<String, String> configurations = new ConcurrentHashMap<>();
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 	private volatile Optional<Map<String, Object>> extraProperties;
-	private final Map<String, Object> properties = new ConcurrentHashMap<>();
 
 	@Reference
 	ExecutorService executorService;
@@ -75,7 +80,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 		ch.pipeline().addFirst(eventExecutorGroup, DynamicChannelHandler.HANDLER_NAME, dynamicHandler);
 
 		// TODO: log trace
-		System.out.println(String.format("Added '%s' to channel with ID '%s'.", dynamicHandler, channelId));
+		System.out.println(String.format("Added '%s', channel: '%s'", dynamicHandler, channelId));
 
 		String configurationPid = configurations.remove(channelId);
 		if (configurationPid == null) {
@@ -126,7 +131,11 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	@Activate
 	void activate(Configuration.ChannelInitializer config, Map<String, Object> props) {
 		this.config = config;
-		this.properties.putAll(props);
+		this.appName = config.appName();
+		this.inetHost = config.inetHost();
+		this.inetPort = config.inetPort();
+		this.pid = (String)props.get(Constants.SERVICE_PID);
+
 		extraProperties = configUtil.toOptionalExtraProperties(props);
 	}
 
@@ -160,13 +169,13 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 			}
 		});
 
-		System.out.println(String.format("Initialized channel handler %s with channel ID %s", this, channelId));
+		System.out.println(String.format("%s initializing %s with event loop %s", this, channelId, ch.eventLoop()));
 
 	}
 
 	@Override
 	public String toString() {
-		return String.format("ChannelInitializerProvider [service.pid=%s]", properties.get(Constants.SERVICE_PID));
+		return String.format("%s:%s:%s:%d", pid, appName, inetHost, inetPort);
 	}
 
 }

@@ -25,6 +25,7 @@ public class EventLoopGroupProvider extends NioEventLoopGroup {
 		this.appName = config.appName();
 		this.groupName = config.groupName();
 		this.pid = (String) properties.get(Constants.SERVICE_PID);
+		System.out.println("Activated " + this);
 	}
 
 	@Override
@@ -35,7 +36,7 @@ public class EventLoopGroupProvider extends NioEventLoopGroup {
 	@Override
 	protected EventLoop newChild(Executor executor, Object... args) throws Exception {
 		final EventLoop eventLoop = super.newChild(executor, args);
-		System.out.println(String.format("%s creating new event loop %s", this, eventLoop));
+		System.out.println(String.format("Creating new event loop %s", eventLoop));
 		return eventLoop;
 	}
 
