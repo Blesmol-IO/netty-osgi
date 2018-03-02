@@ -7,6 +7,7 @@ import org.osgi.framework.Constants;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.ConfigurationPolicy;
+import org.osgi.service.component.annotations.Deactivate;
 
 import io.blesmol.netty.api.NettyApi;
 import io.netty.channel.EventLoop;
@@ -26,6 +27,17 @@ public class EventLoopGroupProvider extends NioEventLoopGroup {
 		this.groupName = config.groupName();
 		this.pid = (String) properties.get(Constants.SERVICE_PID);
 		System.out.println("Activated " + this);
+		terminationFuture().addListener((f) -> {
+			System.out.println("Terminating " + this);
+		});
+	}
+	
+	@Deactivate
+	void deactivate() {
+		if (!isShuttingDown()) {
+			shutdownGracefully();
+		}
+		System.out.println("Deactivated " + this);
 	}
 
 	@Override
@@ -43,4 +55,5 @@ public class EventLoopGroupProvider extends NioEventLoopGroup {
 		return eventLoop;
 	}
 
+	
 }
