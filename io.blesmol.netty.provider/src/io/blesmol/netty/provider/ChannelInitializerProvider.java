@@ -169,7 +169,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 			}
 		});
 
-		System.out.println(String.format("%s initializing %s with event loop %s", this, channelId, ch.eventLoop()));
+		System.out.println(String.format("%s initializing channel %s:[%s] with event loop %s", this, ch, channelId, ch.eventLoop()));
 
 	}
 
