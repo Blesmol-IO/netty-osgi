@@ -39,13 +39,9 @@ public class NettyClientProvider implements NettyClient {
 		System.out.println("Activating netty client with properties " + properties);
 		bootstrap.group(group).channel(config.channel()).handler(channelInitializer);
 
-			// https://stackoverflow.com/a/28294255
-			// Always disable; channel handler will enable
-			bootstrap.option(ChannelOption.AUTO_READ, false);
-		if (!config.optionAutoRead()) {
-			// https://stackoverflow.com/a/28294255
-			bootstrap.option(ChannelOption.AUTO_READ, false);
-		}
+		// https://stackoverflow.com/a/28294255
+		// Always disable; channel handler will enable
+		bootstrap.option(ChannelOption.AUTO_READ, false);
 
 		System.out.println(String.format("Connecting to server %s:%d", config.inetHost(), config.inetPort()));
 		deferredChannelFuture.resolve(bootstrap.connect(config.inetHost(), config.inetPort()));

@@ -51,7 +51,12 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	private final Deferred<ChannelHandlerContext> deferredContext = new Deferred<>();
 	private final Promise<ChannelHandlerContext> promisedContext = deferredContext.getPromise();
 
-	private final Map<String, Object> properties = new ConcurrentHashMap<>();
+	// Set in activate
+	private String channelId;
+	private String pid;
+	private String appName;
+	private String inetHost;
+	private int inetPort;
 
 	// Extra handler properties
 	private volatile Optional<Map<String, Object>> extraProperties;
@@ -59,8 +64,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	@SuppressWarnings("unused")
 	private volatile Boolean closed = false;
 	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Boolean> CLOSED = AtomicReferenceFieldUpdater
-			.newUpdater(DynamicChannelHandlerProvider.class, Boolean.class, "closed"); 
-	
+			.newUpdater(DynamicChannelHandlerProvider.class, Boolean.class, "closed");
+
 	// The outbound deferred is resolved when the outbound sends us an event, first
 	// time only
 	// The promise is updated each time via a field updater
@@ -84,7 +89,6 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	private static final AtomicReferenceFieldUpdater<DynamicChannelHandlerProvider, Promise> MAYBE_ADD_PIPELINE_PROMISE = AtomicReferenceFieldUpdater
 			.newUpdater(DynamicChannelHandlerProvider.class, Promise.class, "maybeAddToPipelinePromise");
 
-	
 	// Needs volatile since it can be updated on modified method calls
 	// after activate method, possibly on a different thread.
 	private volatile Configuration.DynamicChannelHandler priorConfig;
@@ -155,7 +159,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	void unsetChannelHandler(ChannelHandler handler, Map<String, Object> props) {
 
 		// TODO log
-		System.out.println("Unsetting channel handler " + handler);
+		System.out.println(String.format("Unsetting channel handler %s on %s", handler, this));
 		String handlerName = null;
 		String factoryPid = null;
 		try {
@@ -176,8 +180,9 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 		// If this handler was added, remove
 		if (keyedPipeline.remove(key) != null) {
-			System.out.println(String.format("Unsetting channel handler %s:%s in %s", key.factoryPid, key.handlerName, this));
 			promisedContext.then((p) -> removeFromPipeline(key, handler, p.getValue()));
+			System.out.println(String.format("Unsetted channel handler %s:%s:%s in %s", handler, key.factoryPid,
+					key.handlerName, this));
 
 		}
 
@@ -191,7 +196,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 	@Activate
 	void activate(Configuration.DynamicChannelHandler config, Map<String, Object> props) {
 
-		this.properties.putAll(props);
+		updateProperties(config, props);
 		System.out.println("Activating " + this);
 
 		// Update extra properties
@@ -208,6 +213,15 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	}
 
+	// only call in activate
+	void updateProperties(Configuration.DynamicChannelHandler config, Map<String, Object> properties) {
+		channelId = config.channelId();
+		pid = (String) properties.get(Constants.SERVICE_PID);
+		appName = config.appName();
+		inetHost = config.inetHost();
+		inetPort = config.inetPort();
+	}
+
 	@Modified
 	void modified(Configuration.DynamicChannelHandler config, Map<String, Object> props) {
 
@@ -216,8 +230,6 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 		System.out.println("Modifying " + this);
 
 		// Update our properties
-		this.properties.clear();
-		this.properties.putAll(props);
 		extraProperties = configUtil.toOptionalExtraProperties(props);
 		Configuration.DynamicChannelHandler priorConfig = this.priorConfig;
 		this.priorConfig = config;
@@ -264,16 +276,16 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 		if (CLOSED.compareAndSet(this, false, true)) {
 
 			Configuration.DynamicChannelHandler config = this.priorConfig;
-	
+
 			// Chain this promise off the existing one in the queue, which there should
 			// always be one. What we create we must destroy
 			promises.remove()
-			.then((p) -> deleteFactoryConfigurations(IntStream.range(0, config.handlerNames().length)
-					.mapToObj(i -> new HandlerNameFactoryPid(config.handlerNames()[i], config.factoryPids()[i]))
-					.collect(Collectors.toList())));
+					.then((p) -> deleteFactoryConfigurations(IntStream.range(0, config.handlerNames().length)
+							.mapToObj(i -> new HandlerNameFactoryPid(config.handlerNames()[i], config.factoryPids()[i]))
+							.collect(Collectors.toList())));
 		}
 	}
-	
+
 	private List<HandlerNameFactoryPid> toKeys(String[] handlerNames, String[] factoryPids) {
 
 		assert handlerNames.length == factoryPids.length;
@@ -291,19 +303,19 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 		// Ensure we're not blocking activate method by running on a different thread
 		executor.execute(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				Promise<List<Void>> offerredPromises =
 						// First create the managed service factory configurations
 						maybeCreateFactoryConfigurations(keys)
 								// Then update the configurations with required properties
-								.then((p) -> maybeUpdateFactoryConfigurations(p.getValue(), keys, priorConfig.channelId()))
+								.then((p) -> maybeUpdateFactoryConfigurations(p.getValue(), keys, channelId))
 								// And finally add to the pipeline if not already added
 								.then((p) -> maybeAddToPipeline(p.getValue(), promisedContext.getValue(), keys),
 										(f) -> f.getFailure().printStackTrace());
 				System.out.println("Offering promises to dequeue: " + offerredPromises);
-				promises.offer(offerredPromises);				
+				promises.offer(offerredPromises);
 			}
 		});
 		return Promises.resolved(null);
@@ -382,8 +394,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 						// Fail the channel handler defer if its expected configuration cannot be
 						// updated
 						try {
-							c.update(configUtil.toChannelHandlerProps(priorConfig.appName(), handlerName, channelId,
-									extraProperties));
+							c.update(
+									configUtil.toChannelHandlerProps(appName, handlerName, channelId, extraProperties));
 							System.out.println(
 									String.format("Updated configuration for '%s:%s'", key.factoryPid, handlerName));
 						} catch (Exception e) {
@@ -459,7 +471,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 						// Since we're using the channel's event loop to execute the runnable, we
 						// ensure adding handlers sequentially.
-						System.out.println(String.format("Executing runnable to add handler %s on channel id %s via %s", handlerName, channelId, this));
+						System.out.println(String.format("Executing runnable to add handler %s on channel id %s via %s",
+								handlerName, channelId, this));
 						channelEventLoop.execute(toAdd);
 
 						// deferred.resolve(null);
@@ -491,7 +504,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 			// and resolve
 			result.resolveWith(Promises.all(promises));
 		}));
-		
+
 		// Update promise
 		MAYBE_ADD_PIPELINE_PROMISE.set(this, maybeAddToPipelineDeferred.getPromise());
 		MAYBE_ADD_PIPELINE_DEFERRED.set(this, new Deferred<Future<?>>());
@@ -505,9 +518,9 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 		final Deferred<Void> deferred = new Deferred<>();
 		try {
 			// Only attempt to remove the handler if the channel is still active
-			if (context.channel().isActive()) {
+			if (context.channel().isActive() && context.pipeline().get(key.handlerName) != null) {
 				context.pipeline().remove(handler);
-				System.out.println(String.format("Removed handler '%s' from pipeline", key.handlerName));
+				System.out.println(String.format("Removed handler '%s' from channelId", key.handlerName, channelId));
 			}
 			deferred.resolve(null);
 		} catch (Exception e) {
@@ -531,7 +544,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 				keys.parallelStream().forEach((k) -> {
 					final Deferred<Void> deferred = new Deferred<>();
 					try {
-						System.out.println(String.format("Deleting factory configuration for %s:%s", k.factoryPid, k.handlerName));
+						System.out.println(
+								String.format("Deleting factory configuration for %s:%s", k.factoryPid, k.handlerName));
 						org.osgi.service.cm.Configuration c = configurations.remove(k).getValue();
 						c.delete();
 						deferred.resolve(null);
@@ -541,7 +555,8 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 					}
 					deletedConfigs.add(deferred.getPromise());
 				});
-				System.out.println(String.format("Resolved deleteFactoryConfigurations for " + DynamicChannelHandlerProvider.this));
+				System.out.println(String
+						.format("Resolved deleteFactoryConfigurations for " + DynamicChannelHandlerProvider.this));
 				results.resolveWith(Promises.all(deletedConfigs));
 			}
 		});
@@ -622,10 +637,11 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 			try {
 				@SuppressWarnings("unchecked")
 				Promise<DynamicHandlerEvents> eventPromise = (Promise<DynamicHandlerEvents>) evt;
-				System.out.print(String.format("Getting event promise in " + this));
+				System.out.println(String.format("Getting event promise in " + this));
 				switch (eventPromise.getValue()) {
 				case LAST_HANDLER_ADDED:
-					System.out.print(String.format("Old promise: %s", outboundHandlerPromise));
+					System.out.println(
+							String.format("Resolving deferred related to promise: %s", outboundHandlerPromise));
 					// First resolve the deferred, which resolves any outstanding promise callbacks
 					outboundHandlerDeferred.resolveWith(eventPromise);
 					// Update the promise with the newly updated deferred promise
@@ -634,7 +650,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 					// Then update the deferred so it is ready to resolve the next time around
 					final Deferred<Void> newOutboundHandlerDeferred = new Deferred<>();
 					OUTBOUND_DEFERRED.set(this, newOutboundHandlerDeferred);
-					System.out.println(String.format(". New promise: %s", outboundHandlerPromise));
+					System.out.println(String.format("New promise: %s", outboundHandlerDeferred.getPromise()));
 					return;
 				default:
 					break;
@@ -730,8 +746,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 
 	@Override
 	public String toString() {
-		return String.format("Dynamic handler [%s] on channelId: %s", this.properties.get(Constants.SERVICE_PID),
-				this.properties.get(Property.DynamicChannelHandler.CHANNEL_ID));
+		return String.format("%s:%s:%s:%d:%s", pid, appName, inetHost, inetPort, channelId);
 	}
 
 }
