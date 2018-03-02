@@ -397,7 +397,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 							c.update(
 									configUtil.toChannelHandlerProps(appName, handlerName, channelId, extraProperties));
 							System.out.println(
-									String.format("Updated configuration for '%s:%s'", key.factoryPid, handlerName));
+									String.format("Updated configuration for %s:%s:%s:%s", appName, key.factoryPid, handlerName, channelId));
 						} catch (Exception e) {
 							e.printStackTrace();
 							deferred.fail(e);
@@ -599,7 +599,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 		outboundHandlerPromise.onResolve(new Runnable() {
 			@Override
 			public void run() {
-				System.out.println(this + " read");
+				System.out.println(DynamicChannelHandlerProvider.this + " read");
 				try {
 					DynamicChannelHandlerProvider.super.channelRead(ctx, msg);
 				} catch (Exception e) {
@@ -616,7 +616,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 		outboundHandlerPromise.onResolve(new Runnable() {
 			@Override
 			public void run() {
-				System.out.println(this + " read complete");
+				System.out.println(DynamicChannelHandlerProvider.this + " read complete");
 				try {
 					DynamicChannelHandlerProvider.super.channelReadComplete(ctx);
 				} catch (Exception e) {

@@ -1,9 +1,11 @@
 package io.blesmol.netty.provider;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -45,6 +47,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 	private final AtomicBoolean deactivated = new AtomicBoolean(false);
 	private final Map<String, String> configurations = new ConcurrentHashMap<>();
+	private final List<String> configurationPids = new CopyOnWriteArrayList<>();
 	private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 	private volatile Optional<Map<String, Object>> extraProperties;
 
@@ -85,7 +88,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 		String configurationPid = configurations.remove(channelId);
 		if (configurationPid == null) {
 			// TODO: log debug
-			System.out
+			System.err
 					.println(String.format("No configuration with channel ID '%s' for handler '%s' and properties\n%s",
 							channelId, dynamicHandler, properties));
 			return;
@@ -155,7 +158,10 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 		// Create and cache configuration
 		final String channelId = ch.id().asLongText();
-		channels.put(channelId, ch);
+		final Channel priorChannel = channels.put(channelId, ch);
+		if (priorChannel != null) {
+			System.err.println(String.format("Prior channel %s existed in initializer %s", priorChannel, this));
+		}
 
 		executorService.execute(() -> {
 			String configurationPid;
@@ -163,6 +169,10 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 				configurationPid = configUtil.createDynamicChannelHandlerConfig(channelId, config.appName(),
 						config.inetHost(), config.inetPort(), Arrays.asList(config.factoryPids()),
 						Arrays.asList(config.handlerNames()), extraProperties);
+				if (configurationPids.contains(configurationPid)) {
+					System.err.println(String.format("%s received a previously created configuration pid: %s", ChannelInitializerProvider.this, configurationPid));
+				}
+				configurationPids.add(configurationPid);
 				configurations.put(channelId, configurationPid);
 			} catch (Exception e) {
 				e.printStackTrace();
