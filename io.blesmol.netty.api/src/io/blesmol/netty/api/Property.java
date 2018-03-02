@@ -33,12 +33,6 @@ public interface Property {
 		String CHANNEL = "channel";
 	}
 	
-	interface NettyClient extends HandlerConfig {
-		String CHANNEL = "channel";
-		String SERVER_APP_NAME = "serverAppName";
-		String OPTION_AUTO_READ = "optionAutoRead";
-	}
-
 	interface DynamicChannelHandler extends HandlerConfig {
 		String CHANNEL_ID = "channelId";
 	}
@@ -56,7 +50,7 @@ public interface Property {
 		String INET_HOST = "inetHost";
 		String INET_PORT = "inetPort";
 		String APP_NAME = Property.APP_NAME;
-		String SERVER_APP_NAME = NettyClient.SERVER_APP_NAME;
+		String SERVER_APP_NAME = NettyApi.NettyClient.SERVER_APP_NAME;
 	}
 	
 	interface ServerBootstrap {

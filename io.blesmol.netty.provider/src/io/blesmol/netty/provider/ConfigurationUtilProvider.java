@@ -247,7 +247,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName)
 			throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.NettyClient.APP_NAME, appName);
+		props.put(NettyApi.NettyClient.APP_NAME, appName);
 
 		// FIXME: ldap injection
 		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)%s%s)",
@@ -270,13 +270,13 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				Property.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
 		props.put(ReferenceName.NettyClient.BOOTSTRAP_TARGET, bootstrapTarget);
 
-		props.put(Property.NettyClient.INET_HOST, hostname);
-		props.put(Property.NettyClient.INET_PORT, port);
-		props.put(Property.NettyClient.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
-		props.put(Property.NettyClient.HANDLER_NAMES, handlerNames.toArray(EMPTY_ARRAY));
-		props.put(Property.NettyClient.SERVER_APP_NAME, serverAppName.orElse(""));
+		props.put(NettyApi.NettyClient.INET_HOST, hostname);
+		props.put(NettyApi.NettyClient.INET_PORT, port);
+		props.put(NettyApi.NettyClient.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
+		props.put(NettyApi.NettyClient.HANDLER_NAMES, handlerNames.toArray(EMPTY_ARRAY));
+		props.put(NettyApi.NettyClient.SERVER_APP_NAME, serverAppName.orElse(""));
 
-		return createConfiguration(io.blesmol.netty.api.Configuration.NETTY_CLIENT_PID, props);
+		return createConfiguration(NettyApi.NettyClient.PID, props);
 	}
 
 	private String eventGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {

@@ -10,7 +10,7 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.util.promise.Deferred;
 import org.osgi.util.promise.Promise;
 
-import io.blesmol.netty.api.Configuration;
+import io.blesmol.netty.api.NettyApi;
 import io.blesmol.netty.api.NettyClient;
 import io.blesmol.netty.api.ReferenceName;
 import io.netty.bootstrap.Bootstrap;
@@ -20,7 +20,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 
-@Component(configurationPid = Configuration.NETTY_CLIENT_PID, configurationPolicy = ConfigurationPolicy.REQUIRE, immediate = true)
+@Component(configurationPid = NettyApi.NettyClient.PID, configurationPolicy = ConfigurationPolicy.REQUIRE, immediate = true)
 public class NettyClientProvider implements NettyClient {
 
 	private final Deferred<ChannelFuture> deferredChannelFuture = new Deferred<>();
@@ -35,7 +35,7 @@ public class NettyClientProvider implements NettyClient {
 	ChannelInitializer<Channel> channelInitializer;
 
 	@Activate
-	void activate(Configuration.NettyClient config, Map<String, ?> properties) {
+	void activate(NettyApi.NettyClient config, Map<String, ?> properties) {
 		System.out.println("Activating netty client with properties " + properties);
 		bootstrap.group(group).channel(config.channel()).handler(channelInitializer);
 
@@ -48,8 +48,13 @@ public class NettyClientProvider implements NettyClient {
 	}
 
 	@Deactivate
-	void deactivate(Configuration.NettyClient config) {
-		group.shutdownGracefully();
+	void deactivate(NettyApi.NettyClient config) {
+		// Shutdown group by default
+		// Clients being used as a proxy shouldn't shut down their groups
+		// TODO: test
+		if (config.shutdownGroup()) {
+			group.shutdownGracefully();
+		}
 	}
 
 	@Override
