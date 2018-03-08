@@ -319,15 +319,15 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	// PROPERTIES
 
 	@Override
-	public Hashtable<String, Object> channelHandlerProperties(String appName, String handlerName, String channelId,
+	public Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort, String handlerName, String channelId,
 			Optional<Map<String, Object>> extraProperties) {
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.ChannelHandler.APP_NAME, appName);
-		props.put(Property.ChannelHandler.HANDLER_NAME, handlerName);
-		props.put(Property.ChannelHandler.CHANNEL_ID, channelId);
-
+		props.put(NettyApi.ChannelHandler.APP_NAME, appName);
+		props.put(NettyApi.ChannelHandler.INET_HOST, inetHost);
+		props.put(NettyApi.ChannelHandler.INET_PORT, inetPort);
+		props.put(NettyApi.ChannelHandler.HANDLER_NAME, handlerName);
+		props.put(NettyApi.ChannelHandler.CHANNEL_ID, channelId);
 		props.putAll(fromOptionalExtraProperties(extraProperties));
-
 		return props;
 	}
 

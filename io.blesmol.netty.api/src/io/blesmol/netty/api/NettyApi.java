@@ -1,5 +1,6 @@
 package io.blesmol.netty.api;
 
+import io.blesmol.netty.api.Property.DynamicChannelHandler;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 public interface NettyApi {
@@ -10,6 +11,8 @@ public interface NettyApi {
 	String INET_HOST = "inetHost";
 
 	String INET_PORT = "inetPort";
+	
+	String CHANNEL_ID = "channelId";
 
 	@interface EventLoopGroup {
 		String PID = "io.netty.channel.EventLoopGroup";
@@ -91,6 +94,28 @@ public interface NettyApi {
 
 		boolean shutdownGroup() default true;
 	}
+	
+	@interface ChannelHandler {
+		String APP_NAME = NettyApi.APP_NAME;
+
+		String appName();
+
+		String INET_HOST = NettyApi.INET_HOST;
+
+		String inetHost();
+
+		String INET_PORT = NettyApi.INET_PORT;
+
+		int inetPort();
+
+		String CHANNEL_ID = NettyApi.CHANNEL_ID;
+
+		String channelId();
+
+		String HANDLER_NAME = "handlerName";
+		
+		String handlerName();
+	}
 
 	@interface Channel {
 		String PID = "io.netty.channel.Channel";
@@ -107,7 +132,7 @@ public interface NettyApi {
 
 		int inetPort();
 
-		String CHANNEL_ID = "channelId";
+		String CHANNEL_ID = NettyApi.CHANNEL_ID;
 
 		String channelId();
 

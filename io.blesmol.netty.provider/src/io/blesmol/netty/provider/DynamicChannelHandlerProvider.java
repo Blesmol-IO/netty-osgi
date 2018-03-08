@@ -395,7 +395,7 @@ public class DynamicChannelHandlerProvider extends ChannelInboundHandlerAdapter 
 						// updated
 						try {
 							c.update(
-									configUtil.channelHandlerProperties(appName, handlerName, channelId, extraProperties));
+									configUtil.channelHandlerProperties(appName, inetHost, inetPort, handlerName, channelId, extraProperties));
 							System.out.println(
 									String.format("Updated configuration for %s:%s:%s:%s", appName, key.factoryPid, handlerName, channelId));
 						} catch (Exception e) {

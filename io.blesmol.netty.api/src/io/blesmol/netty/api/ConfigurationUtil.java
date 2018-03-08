@@ -81,7 +81,7 @@ public interface ConfigurationUtil {
 
 	// PROPERTIES
 
-	Hashtable<String, Object> channelHandlerProperties(String appName, String handlerName, String channelId,
+	Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort, String handlerName, String channelId,
 			Optional<Map<String, Object>> extraProperties);
 
 	Hashtable<String, Object> channelInitializerProperties(String appName, String hostname, int port,
