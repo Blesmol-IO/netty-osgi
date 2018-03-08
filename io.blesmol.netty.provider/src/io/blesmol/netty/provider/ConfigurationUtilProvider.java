@@ -128,8 +128,6 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	// EVENT LOOP
-	
-	@Deprecated
 	@Override
 	public String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
 		final Hashtable<String, Object> props = eventLoopGroupProperties(appName, inetHost, inetPort, groupName);

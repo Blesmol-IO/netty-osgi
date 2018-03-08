@@ -27,7 +27,6 @@ public interface ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName, Optional<Boolean> shutdownGroup) throws Exception;
 
 	// EVENT LOOP
-	@Deprecated
 	String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
 
 	List<Configuration> getEventLoopGroupConfigurations(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
