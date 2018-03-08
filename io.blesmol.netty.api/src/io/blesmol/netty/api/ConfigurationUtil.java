@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.osgi.annotation.versioning.ProviderType;
+import org.osgi.service.cm.Configuration;
 
 // TODO: consider a builder pattern
 @ProviderType
@@ -26,7 +27,10 @@ public interface ConfigurationUtil {
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName, Optional<Boolean> shutdownGroup) throws Exception;
 
 	// EVENT LOOP
+	@Deprecated
 	String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
+
+	List<Configuration> getEventLoopGroupConfigurations(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
 	
 	Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort, String groupName);
 	

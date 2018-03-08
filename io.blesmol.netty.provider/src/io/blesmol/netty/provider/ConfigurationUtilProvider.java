@@ -2,13 +2,17 @@ package io.blesmol.netty.provider;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Dictionary;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -56,20 +60,45 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		});
 	}
 
+	// Is this needed?
 	List<Configuration> configurations = new CopyOnWriteArrayList<>();
 
-	@Deprecated
-	private String createConfiguration(String factoryPid, Dictionary<String, Object> properties) throws Exception {
-		return getOrCreateConfiguration(factoryPid, properties, false);
+	private List<Configuration> getConfigurations(String factoryPid, Dictionary<String, Object> properties) throws Exception {
+		final Configuration[] configurations = admin.listConfigurations(createFilterFromDictionary(factoryPid, properties));
+		return (configurations == null) ? Collections.emptyList() : Arrays.asList(configurations);
 	}
 
-	private String getOrCreateConfiguration(String factoryPid, Dictionary<String, Object> properties, boolean create) throws Exception {
+	// FIXME: No LDAP escaping perform
+	private String createFilterFromDictionary(String factoryPid, Dictionary<String, Object> properties) {
+		final Enumeration<String> keys = properties.keys();
+		final StringBuilder sb = new StringBuilder("(&");
+		sb.append(String.format("(%s=%s)", ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid));
+		while (keys.hasMoreElements()) {
+			String key = keys.nextElement();
+			sb.append(String.format("(%s=%s)", key, properties.get(key)));
+		}
+		sb.append(")");
+		return sb.toString();
+		
+	}
+
+	private String createConfiguration(String factoryPid, Dictionary<String, Object> properties) throws Exception {
 		Configuration configuration = admin.createFactoryConfiguration(factoryPid, "?");
 		configuration.update(properties);
 		configurations.add(configuration);
 		return configuration.getPid();
 	}
-	
+//
+//	private List<String> getConfigurationsOrCreateConfiguration(String factoryPid, Dictionary<String, Object> properties, String filter, boolean createOnly) throws Exception {
+//		final List<String> results = new ArrayList<>();
+//		if (!createOnly) {
+//			results.addAll(getConfigurations(factoryPid, properties));
+//		} else {
+//			results.add(createConfiguration(factoryPid, properties));
+//		}
+//		return results;
+//	}
+
 	@Override
 	public List<String> createNettyServer(String appName, String hostname, Integer port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
@@ -98,12 +127,22 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		return results;
 	}
 
+	// EVENT LOOP
+	
+	@Deprecated
 	@Override
 	public String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
 		final Hashtable<String, Object> props = eventLoopGroupProperties(appName, inetHost, inetPort, groupName);
 		return createConfiguration(NettyApi.EventLoopGroup.PID, props);
 	}
-
+	
+	@Override
+	public List<Configuration> getEventLoopGroupConfigurations(String appName, String inetHost, Integer inetPort, String groupName)
+			throws Exception {
+		final Hashtable<String, Object> props = eventLoopGroupProperties(appName, inetHost, inetPort, groupName);
+		return getConfigurations(NettyApi.EventLoopGroup.PID, props);
+	}
+	
 	@Override
 	public Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort,
 			String groupName) {
@@ -114,6 +153,16 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		eventLoopProperties.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
 		return eventLoopProperties;
 	}
+	
+	@Override
+	public String eventLoopGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {
+		return String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
+				NettyApi.EventLoopGroup.APP_NAME,
+				appName, NettyApi.EventLoopGroup.INET_HOST, inetHost, NettyApi.EventLoopGroup.INET_PORT, inetPort,
+				NettyApi.EventLoopGroup.GROUP_NAME, groupName);
+	}
+	
+	// EXECUTOR GROUP
 	
 	@Override
 	public String createEventExecutorGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
@@ -291,13 +340,6 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		return createConfiguration(NettyApi.NettyClient.PID, props);
 	}
 
-	@Override
-	public String eventLoopGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {
-		return String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
-				NettyApi.EventLoopGroup.APP_NAME,
-				appName, NettyApi.EventLoopGroup.INET_HOST, inetHost, NettyApi.EventLoopGroup.INET_PORT, inetPort,
-				NettyApi.EventLoopGroup.GROUP_NAME, groupName);
-	}
 	
 	@Override
 	public String createServerBootstrapProvider(String appName, String hostname, int port) throws Exception {
