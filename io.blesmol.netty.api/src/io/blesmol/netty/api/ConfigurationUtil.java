@@ -81,16 +81,16 @@ public interface ConfigurationUtil {
 
 	// PROPERTIES
 
-	Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort, String handlerName, String channelId,
-			Optional<Map<String, Object>> extraProperties);
+	Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort,
+			String handlerName, String channelId, Optional<Map<String, Object>> extraProperties);
 
 	Hashtable<String, Object> channelInitializerProperties(String appName, String hostname, int port,
 			String[] factoryPids, String[] handlerNames, Optional<Map<String, Object>> extraProperties);
 
 	Hashtable<String, Object> channelProperties(String appName, String inetHost, Integer inetPort, String channelId);
 
-	Hashtable<String, Object> dynamicHandlerProperties(String channelId, String appName, String hostname,
-			int port, String[] factoryPids, String[] handlerNames, Optional<Map<String, Object>> extraProperties);
+	Hashtable<String, Object> dynamicHandlerProperties(String channelId, String appName, String hostname, int port,
+			String[] factoryPids, String[] handlerNames, Optional<Map<String, Object>> extraProperties);
 
 	Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort,
 			String groupName);
@@ -101,6 +101,8 @@ public interface ConfigurationUtil {
 
 	// TARGETS
 
-	String eventLoopGroupTarget(String appName, String inetHost, Integer inetPort, String groupName);
+	String channelTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String channelId);
+
+	String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String groupName);
 
 }

@@ -81,15 +81,15 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	List<Configuration> getConfigurations(String factoryPid, Dictionary<String, Object> properties) throws Exception {
 		final Configuration[] configurations = admin
-				.listConfigurations(createFilterFromDictionary(factoryPid, properties));
+				.listConfigurations(createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid, properties));
 		return (configurations == null) ? Collections.emptyList() : Arrays.asList(configurations);
 	}
 
 	// FIXME: No LDAP escaping perform
-	String createFilterFromDictionary(String factoryPid, Dictionary<String, Object> properties) {
+	String createFilterFromDictionary(String pidKey, String pidValue, Dictionary<String, Object> properties) {
 		final Enumeration<String> keys = properties.keys();
 		final StringBuilder sb = new StringBuilder("(&");
-		sb.append(String.format("(%s=%s)", ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid));
+		sb.append(String.format("(%s=%s)", pidKey, pidValue));
 		while (keys.hasMoreElements()) {
 			String key = keys.nextElement();
 			sb.append(String.format("(%s=%s)", key, properties.get(key)));
@@ -138,10 +138,10 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event groups at the application level currently
-		String bossGroupTarget = eventLoopGroupTarget(appName, hostname, port,
+		String bossGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.EventLoopGroup.PID, appName, hostname, port,
 				ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP_TARGET, bossGroupTarget);
-		String workerGroupTarget = eventLoopGroupTarget(appName, hostname, port,
+		String workerGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.EventLoopGroup.PID, appName, hostname, port,
 				ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP_TARGET, workerGroupTarget);
 
@@ -191,7 +191,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event group
-		String eventGroupTarget = eventLoopGroupTarget(appName, hostname, port,
+		String eventGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.EventLoopGroup.PID, appName, hostname, port,
 				ReferenceName.NettyClient.EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
 
@@ -430,10 +430,13 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	// TARGETS
 
 	@Override
-	public String eventLoopGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {
-		return String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))", NettyApi.EventLoopGroup.APP_NAME, appName,
-				NettyApi.EventLoopGroup.INET_HOST, inetHost, NettyApi.EventLoopGroup.INET_PORT, inetPort,
-				NettyApi.EventLoopGroup.GROUP_NAME, groupName);
+	public String channelTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String channelId) {
+		return createFilterFromDictionary(pidKey, pidValue, channelProperties(appName, inetHost, inetPort, channelId));
+	}
+	
+	@Override
+	public String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String groupName) {
+		return createFilterFromDictionary(pidKey, pidValue, eventLoopGroupProperties(appName, inetHost, inetPort, groupName));
 	}
 
 }
