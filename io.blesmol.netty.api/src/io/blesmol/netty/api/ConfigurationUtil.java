@@ -2,6 +2,7 @@ package io.blesmol.netty.api;
 
 import java.util.Collection;
 import java.util.Dictionary;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,7 +25,12 @@ public interface ConfigurationUtil {
 	String createNettyClientConfig(String appName, String hostname, Integer port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName, Optional<Boolean> shutdownGroup) throws Exception;
 
+	// EVENT LOOP
 	String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
+	
+	Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort, String groupName);
+	
+	String eventLoopGroupTarget(String appName, String inetHost, Integer inetPort, String groupName);
 
 	String createEventExecutorGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
 
@@ -43,6 +49,7 @@ public interface ConfigurationUtil {
 	
 	void deleteConfigurationPids(Collection<String> pids) throws Exception;
 
+	
 	Dictionary<String, Object> toChannelHandlerProps(String appName, String handlerName, String channelId,
 			Optional<Map<String, Object>> extraProperties);
 

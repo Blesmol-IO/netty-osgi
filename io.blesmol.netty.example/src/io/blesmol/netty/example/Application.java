@@ -19,7 +19,7 @@ public class Application {
 	@Activate
 	void activate() throws Exception {
 		List<String> configPids = new ArrayList<>();
-		configPids.add(configUtil.createNettyServerConfig(Application.class.getName(), "localhost", 8484, new ArrayList<>(), new ArrayList<>(), Optional.empty()));
+		configPids.addAll(configUtil.createNettyServer(Application.class.getName(), "localhost", 8484, new ArrayList<>(), new ArrayList<>(), Optional.empty()));
 	}
 
 	@Deactivate

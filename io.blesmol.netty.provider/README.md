@@ -1,6 +1,8 @@
 
 ## TODOs
 
+* Refactor OSGi providers to remove netty-specific code in a separate netty handler project
+
 * Support handlers which declare they wish to be deleted
 
 * Logging, lol

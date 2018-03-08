@@ -14,5 +14,6 @@ public interface NettyClient {
 	 * 
 	 * @return a promised channel future
 	 */
+	@Deprecated
 	Promise<ChannelFuture> promise();
 }

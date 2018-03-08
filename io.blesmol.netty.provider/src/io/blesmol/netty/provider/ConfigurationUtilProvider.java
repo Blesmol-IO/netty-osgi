@@ -58,13 +58,18 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	List<Configuration> configurations = new CopyOnWriteArrayList<>();
 
+	@Deprecated
 	private String createConfiguration(String factoryPid, Dictionary<String, Object> properties) throws Exception {
+		return getOrCreateConfiguration(factoryPid, properties, false);
+	}
+
+	private String getOrCreateConfiguration(String factoryPid, Dictionary<String, Object> properties, boolean create) throws Exception {
 		Configuration configuration = admin.createFactoryConfiguration(factoryPid, "?");
 		configuration.update(properties);
 		configurations.add(configuration);
 		return configuration.getPid();
 	}
-
+	
 	@Override
 	public List<String> createNettyServer(String appName, String hostname, Integer port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
@@ -95,14 +100,21 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
-		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(NettyApi.EventLoopGroup.APP_NAME, appName);
-		props.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
-		props.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
-		props.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
+		final Hashtable<String, Object> props = eventLoopGroupProperties(appName, inetHost, inetPort, groupName);
 		return createConfiguration(NettyApi.EventLoopGroup.PID, props);
 	}
 
+	@Override
+	public Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort,
+			String groupName) {
+		final Hashtable<String, Object> eventLoopProperties = new Hashtable<>();
+		eventLoopProperties.put(NettyApi.EventLoopGroup.APP_NAME, appName);
+		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
+		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
+		eventLoopProperties.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
+		return eventLoopProperties;
+	}
+	
 	@Override
 	public String createEventExecutorGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception {
 		final Hashtable<String, Object> props = new Hashtable<>();
@@ -211,9 +223,9 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event groups at the application level currently
-		String bossGroupTarget = eventGroupTarget(appName, hostname, port, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
+		String bossGroupTarget = eventLoopGroupTarget(appName, hostname, port, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP_TARGET, bossGroupTarget);
-		String workerGroupTarget = eventGroupTarget(appName, hostname, port, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
+		String workerGroupTarget = eventLoopGroupTarget(appName, hostname, port, ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP_TARGET, workerGroupTarget);
 
 		// Server bootstrap target
@@ -258,7 +270,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event group
-		String eventGroupTarget = eventGroupTarget(appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
+		String eventGroupTarget = eventLoopGroupTarget(appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
 
 		// Bootstrap target, using optional server app name too
@@ -279,7 +291,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		return createConfiguration(NettyApi.NettyClient.PID, props);
 	}
 
-	private String eventGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {
+	@Override
+	public String eventLoopGroupTarget(String appName, String inetHost, Integer inetPort, String groupName) {
 		return String.format("(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))",
 				NettyApi.EventLoopGroup.APP_NAME,
 				appName, NettyApi.EventLoopGroup.INET_HOST, inetHost, NettyApi.EventLoopGroup.INET_PORT, inetPort,
