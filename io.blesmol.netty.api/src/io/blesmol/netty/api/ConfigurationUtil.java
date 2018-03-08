@@ -60,6 +60,11 @@ public interface ConfigurationUtil {
 	String createEventExecutorGroup(String appName, String inetHost, Integer inetPort, String groupName)
 			throws Exception;
 
+	/**
+	 * Requires a factory pid since channels are created by netty and registered later
+	 */
+	String createChannelConfig(String factoryPid, String appName, String inetHost, Integer inetPort, String channelId) throws Exception;
+
 	List<String> createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
 

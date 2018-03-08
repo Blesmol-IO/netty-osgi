@@ -252,6 +252,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
+	public String createChannelConfig(String factoryPid, String appName, String inetHost, Integer inetPort,
+			String channelId) throws Exception {
+		return createConfiguration(factoryPid, channelProperties(appName, inetHost, inetPort, channelId));
+	}
+
+	@Override
 	public List<String> createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception {
 
