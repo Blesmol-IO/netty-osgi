@@ -404,8 +404,9 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			String groupName) {
 		final Hashtable<String, Object> eventLoopProperties = new Hashtable<>();
 		eventLoopProperties.put(NettyApi.EventLoopGroup.APP_NAME, appName);
-		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
-		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
+		// Only target on app name for now. That should become "userInfo"
+//		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
+//		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
 		eventLoopProperties.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
 		return eventLoopProperties;
 	}
