@@ -86,6 +86,19 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	// FIXME: No LDAP escaping perform
+	String createFilterFromDictionary(Dictionary<String, Object> properties) {
+		final Enumeration<String> keys = properties.keys();
+		final StringBuilder sb = new StringBuilder("(&");
+		while (keys.hasMoreElements()) {
+			String key = keys.nextElement();
+			sb.append(String.format("(%s=%s)", key, properties.get(key)));
+		}
+		sb.append(")");
+		return sb.toString();
+
+	}
+
+	// FIXME: No LDAP escaping perform
 	String createFilterFromDictionary(String pidKey, String pidValue, Dictionary<String, Object> properties) {
 		final Enumeration<String> keys = properties.keys();
 		final StringBuilder sb = new StringBuilder("(&");
@@ -438,7 +451,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public String channelTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String channelId) {
-		return createFilterFromDictionary(pidKey, pidValue, channelProperties(appName, inetHost, inetPort, channelId));
+		return createFilterFromDictionary(channelProperties(appName, inetHost, inetPort, channelId));
 	}
 	
 	@Override
