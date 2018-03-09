@@ -106,7 +106,7 @@ public interface ConfigurationUtil {
 
 	// TARGETS
 
-	String channelTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String channelId);
+	String channelTarget(String appName, String inetHost, Integer inetPort, String channelId);
 
 	String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String groupName);
 

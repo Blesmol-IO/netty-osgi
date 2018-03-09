@@ -450,7 +450,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	// TARGETS
 
 	@Override
-	public String channelTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String channelId) {
+	public String channelTarget(String appName, String inetHost, Integer inetPort, String channelId) {
 		return createFilterFromDictionary(channelProperties(appName, inetHost, inetPort, channelId));
 	}
 	
