@@ -25,6 +25,7 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
 import io.blesmol.netty.api.Configuration;
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.DynamicChannelHandler;
+import io.blesmol.netty.api.NettyApi;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.api.ReferenceName;
 import io.netty.channel.Channel;
@@ -33,7 +34,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.util.concurrent.EventExecutorGroup;
 
-@Component(service = ChannelInitializer.class, configurationPid = Configuration.CHANNEL_INITIALIZER_PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
+@Component(service = ChannelInitializer.class, configurationPid = NettyApi.ChannelInitializer.PID, configurationPolicy = ConfigurationPolicy.REQUIRE)
 public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 
 	// Set in activate
@@ -43,7 +44,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	private int inetPort;
 	
 	// Cross-thread access
-	private volatile Configuration.ChannelInitializer config;
+	private volatile NettyApi.ChannelInitializer config;
 
 	private final AtomicBoolean deactivated = new AtomicBoolean(false);
 	private final Map<String, String> configurations = new ConcurrentHashMap<>();
@@ -132,7 +133,7 @@ public class ChannelInitializerProvider extends ChannelInitializer<Channel> {
 	ConfigurationUtil configUtil;
 
 	@Activate
-	void activate(Configuration.ChannelInitializer config, Map<String, Object> props) {
+	void activate(NettyApi.ChannelInitializer config, Map<String, Object> props) {
 		this.config = config;
 		this.appName = config.appName();
 		this.inetHost = config.inetHost();

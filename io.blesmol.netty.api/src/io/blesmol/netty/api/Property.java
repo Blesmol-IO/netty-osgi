@@ -43,8 +43,8 @@ public interface Property {
 		String HANDLER_NAME = "handlerName";
 	}
 
-	interface ChannelInitializer extends HandlerConfig {
-	}
+//	interface ChannelInitializer extends HandlerConfig {
+//	}
 
 //	interface Bootstrap {
 //		String INET_HOST = "inetHost";

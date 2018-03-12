@@ -156,4 +156,26 @@ public interface NettyApi {
 
 	}
 
+	@interface ChannelInitializer {
+		
+		String PID = "io.netty.channel.ChannelInitializer";
+		String APP_NAME = NettyApi.APP_NAME;
+
+		String appName();
+
+		String INET_HOST = NettyApi.INET_HOST;
+
+		String inetHost();
+
+		String INET_PORT = NettyApi.INET_PORT;
+
+		int inetPort();
+
+		String FACTORY_PIDS = NettyClient.FACTORY_PIDS;
+		String[] factoryPids();
+
+		String HANDLER_NAMES = NettyClient.HANDLER_NAMES;
+		String[] handlerNames();
+	}
+
 }

@@ -190,10 +190,10 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 		// FIXME: ldap injection
 		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)%s%s)",
-				Property.ChannelInitializer.APP_NAME, appName, Property.ChannelInitializer.INET_HOST, hostname,
-				Property.ChannelInitializer.INET_PORT, port,
-				listFilter(Property.ChannelInitializer.FACTORY_PIDS, factoryPids),
-				listFilter(Property.ChannelInitializer.HANDLER_NAMES, handlerNames));
+				NettyApi.ChannelInitializer.APP_NAME, appName, NettyApi.ChannelInitializer.INET_HOST, hostname,
+				NettyApi.ChannelInitializer.INET_PORT, port,
+				listFilter(NettyApi.ChannelInitializer.FACTORY_PIDS, factoryPids),
+				listFilter(NettyApi.ChannelInitializer.HANDLER_NAMES, handlerNames));
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event groups at the application level currently
@@ -246,7 +246,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	public String createBootstrapProvider(String appName, String hostname, int port, Optional<String> serverAppName)
 			throws Exception {
 		final Hashtable<String, Object> props = bootstrapProperties(appName, hostname, port, serverAppName);
-		return createConfiguration(io.blesmol.netty.api.Configuration.BOOTSTRAP_PID, props);
+		return createConfiguration(NettyApi.Bootstrap.PID, props);
 	}
 
 	@Override
@@ -296,7 +296,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 		final Dictionary<String, Object> props = toChannelInitializerProperties(appName, hostname, port, factoryPids,
 				handlerNames, extraProperties);
-		return createConfiguration(io.blesmol.netty.api.Configuration.CHANNEL_INITIALIZER_PID, props);
+		return createConfiguration(NettyApi.ChannelInitializer.PID, props);
 	}
 
 	@Override
@@ -374,11 +374,11 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			String[] factoryPids, String[] handlerNames, Optional<Map<String, Object>> extraProperties) {
 
 		final Hashtable<String, Object> props = new Hashtable<>();
-		props.put(Property.ChannelInitializer.APP_NAME, appName);
-		props.put(Property.ChannelInitializer.INET_HOST, hostname);
-		props.put(Property.ChannelInitializer.INET_PORT, port);
-		props.put(Property.ChannelInitializer.FACTORY_PIDS, factoryPids);
-		props.put(Property.ChannelInitializer.HANDLER_NAMES, handlerNames);
+		props.put(NettyApi.ChannelInitializer.APP_NAME, appName);
+		props.put(NettyApi.ChannelInitializer.INET_HOST, hostname);
+		props.put(NettyApi.ChannelInitializer.INET_PORT, port);
+		props.put(NettyApi.ChannelInitializer.FACTORY_PIDS, factoryPids);
+		props.put(NettyApi.ChannelInitializer.HANDLER_NAMES, handlerNames);
 
 		// store extra properties as handler properties
 		addExtraProperties(props, extraProperties);
@@ -463,10 +463,10 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 		// FIXME: ldap injection
 		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)%s%s)",
-				Property.ChannelInitializer.APP_NAME, appName, Property.ChannelInitializer.INET_HOST, hostname,
-				Property.ChannelInitializer.INET_PORT, port,
-				listFilter(Property.ChannelInitializer.FACTORY_PIDS, factoryPids),
-				listFilter(Property.ChannelInitializer.HANDLER_NAMES, handlerNames));
+				NettyApi.ChannelInitializer.APP_NAME, appName, NettyApi.ChannelInitializer.INET_HOST, hostname,
+				NettyApi.ChannelInitializer.INET_PORT, port,
+				listFilter(NettyApi.ChannelInitializer.FACTORY_PIDS, factoryPids),
+				listFilter(NettyApi.ChannelInitializer.HANDLER_NAMES, handlerNames));
 		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event group

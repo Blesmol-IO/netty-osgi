@@ -37,6 +37,7 @@ import org.osgi.util.tracker.ServiceTracker;
 
 import io.blesmol.netty.api.ConfigurationUtil;
 import io.blesmol.netty.api.DynamicChannelHandler;
+import io.blesmol.netty.api.NettyApi;
 import io.blesmol.netty.api.Property;
 import io.blesmol.netty.test.TestUtils.LatchChannelHandler;
 import io.blesmol.netty.test.TestUtils.LatchTestChannelHandlerFactory;
@@ -132,8 +133,8 @@ public class ChannelInitializerMultiChannelsTest {
 				Optional.empty()));
 
 		String filter = String.format("(&(%s=%s)(%s=%s)(%s=%s)(%s=%d))", Constants.OBJECTCLASS,
-				ChannelInitializer.class.getName(), Property.ChannelInitializer.APP_NAME, appName,
-				Property.ChannelInitializer.INET_HOST, hostname, Property.ChannelInitializer.INET_PORT, port);
+				ChannelInitializer.class.getName(), NettyApi.ChannelInitializer.APP_NAME, appName,
+				NettyApi.ChannelInitializer.INET_HOST, hostname, NettyApi.ChannelInitializer.INET_PORT, port);
 
 		initializerTracker = TestUtils.getTracker(context, ChannelInitializer.class, filter);
 		trackers.add(initializerTracker);
