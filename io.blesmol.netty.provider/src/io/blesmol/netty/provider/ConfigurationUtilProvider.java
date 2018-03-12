@@ -1,6 +1,7 @@
 package io.blesmol.netty.provider;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,7 +40,7 @@ import io.blesmol.netty.api.ReferenceName;
 public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	private static final Logger logger = LoggerFactory.getLogger(ConfigurationUtil.class);
-	
+
 	private final AtomicBoolean deactivated = new AtomicBoolean(false);
 
 	// Is this needed?
@@ -87,33 +88,72 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	List<Configuration> getConfigurations(String factoryPid, Dictionary<String, Object> properties) throws Exception {
-		final Configuration[] configurations = admin
-				.listConfigurations(createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid, properties));
+		final Configuration[] configurations = admin.listConfigurations(
+				createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid, properties));
 		return (configurations == null) ? Collections.emptyList() : Arrays.asList(configurations);
 	}
 
-	// FIXME: No LDAP escaping perform
 	String createFilterFromDictionary(Dictionary<String, Object> properties) {
 		final Enumeration<String> keys = properties.keys();
 		final StringBuilder sb = new StringBuilder("(&");
 		while (keys.hasMoreElements()) {
 			String key = keys.nextElement();
-			sb.append(String.format("(%s=%s)", key, properties.get(key)));
+			sb.append(String.format("(%s=%s)", ldapSearchEscape(key), ldapSearchEscape((String)properties.get(key))));
 		}
 		sb.append(")");
 		return sb.toString();
 
 	}
 
+	
+	// https://stackoverflow.com/a/46008789
+	// Copyright issues!
+	// Maybe replace with Spring LDAP filter from spring-ldap-core? 
+	// https://www.owasp.org/index.php/Preventing_LDAP_Injection_in_Java
+	@Override
+	public String ldapSearchEscape(String unescaped) {
+		if (unescaped == null) {
+			return "";
+		}
+
+		final StringBuilder sb = new StringBuilder(unescaped.length());
+		for (byte c : unescaped.getBytes(StandardCharsets.UTF_8)) {
+			if (c == '\\') {
+				sb.append("\\5c");
+			} else if (c == '*') {
+				sb.append("\\2a");
+			} else if (c == '(') {
+				sb.append("\\28");
+			} else if (c == ')') {
+				sb.append("\\29");
+			} else if (c == 0) {
+				sb.append("\\00");
+			} else if ((c & 0xff) > 127) {
+				sb.append("\\").append(to2CharHexString((c & 0xff)));
+			} // UTF-8's non-7-bit characters, e.g. é, á, etc...
+			else {
+				sb.append((char) c);
+			}
+		}
+		return sb.toString();
+
+	}
+	private String to2CharHexString(int i)
+	{
+	    String s = Integer.toHexString(i & 0xff);
+	    if (s.length()==1) return "0"+s;
+	    else return s;
+	}
+
 	// FIXME: No LDAP escaping perform
 	@Override
 	public String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties) {
 		final StringBuilder sb = new StringBuilder("(&");
-		sb.append(String.format("(%s=%s)", pidKey, pidValue));
-		properties.entrySet().stream().map(es -> String.format("(%s=%s)", es.getKey(), es.getValue())).forEach(sb::append);
+		sb.append(String.format("(%s=%s)", ldapSearchEscape(pidKey), ldapSearchEscape(pidValue)));
+		properties.entrySet().stream().map(es -> String.format("(%s=%s)", ldapSearchEscape(es.getKey()), ldapSearchEscape((String)es.getValue())))
+				.forEach(sb::append);
 		return sb.toString();
 	}
-	
 
 	@Override
 	public String createFilterFromDictionary(String pidKey, String pidValue, Dictionary<String, Object> properties) {
@@ -143,21 +183,23 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 			@Override
 			public Set<String> call() throws Exception {
-				
+
 				Set<String> results = new HashSet<>();
-				for (String pid: factoryPids) {
+				for (String pid : factoryPids) {
 					final Dictionary<String, Object> dict = new Hashtable<>(properties);
 					List<Configuration> configurations = getConfigurations(pid, dict);
 					if (configurations == null || configurations.isEmpty()) {
 						results.add(createConfiguration(pid, dict));
 					} else {
 						if (configurations.size() > 1) {
-							logger.error("{} configurations return for factory pid {} and props {}, expected 1. Maybe supply a target to the filter?", configurations.size(), pid, properties);
+							logger.error(
+									"{} configurations return for factory pid {} and props {}, expected 1. Maybe supply a target to the filter?",
+									configurations.size(), pid, properties);
 							throw new IllegalStateException("Too many configurations");
 						} else {
 							results.add(configurations.get(0).getPid());
 						}
-						
+
 					}
 				}
 				return results;
@@ -197,10 +239,11 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyServer.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event groups at the application level currently
-		String bossGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.EventLoopGroup.PID, appName, hostname, port,
-				ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
+		String bossGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID,
+				NettyApi.EventLoopGroup.PID, appName, hostname, port, ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.BOSS_EVENT_LOOP_GROUP_TARGET, bossGroupTarget);
-		String workerGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.EventLoopGroup.PID, appName, hostname, port,
+		String workerGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID,
+				NettyApi.EventLoopGroup.PID, appName, hostname, port,
 				ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyServer.WORKER_EVENT_LOOP_GROUP_TARGET, workerGroupTarget);
 
@@ -238,7 +281,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	public String createNettyClientConfig(String appName, String hostname, Integer port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName,
 			Optional<Boolean> shutdownGroup) throws Exception {
-		final Hashtable<String, Object> props = nettyClientProperties(appName, hostname, port, factoryPids, handlerNames, extraProperties, serverAppName, shutdownGroup);
+		final Hashtable<String, Object> props = nettyClientProperties(appName, hostname, port, factoryPids,
+				handlerNames, extraProperties, serverAppName, shutdownGroup);
 		return createConfiguration(NettyApi.NettyClient.PID, props);
 	}
 
@@ -268,8 +312,10 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	@Override
 	public String createEventExecutorGroup(String appName, String inetHost, Integer inetPort, String groupName)
 			throws Exception {
-//		final Hashtable<String, Object> props = eventExecutorGroupProperties(appName, inetHost, inetPort, groupName);
-		return createConfiguration(NettyApi.EventExecutorGroup.PID, eventExecutorGroupProperties(appName, inetHost, inetPort, groupName));
+		// final Hashtable<String, Object> props = eventExecutorGroupProperties(appName,
+		// inetHost, inetPort, groupName);
+		return createConfiguration(NettyApi.EventExecutorGroup.PID,
+				eventExecutorGroupProperties(appName, inetHost, inetPort, groupName));
 	}
 
 	@Override
@@ -357,8 +403,8 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
-	public Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort, String handlerName, String channelId,
-			Optional<Map<String, Object>> extraProperties) {
+	public Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort,
+			String handlerName, String channelId, Optional<Map<String, Object>> extraProperties) {
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(NettyApi.ChannelHandler.APP_NAME, appName);
 		props.put(NettyApi.ChannelHandler.INET_HOST, inetHost);
@@ -441,15 +487,15 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(NettyApi.EventExecutorGroup.GROUP_NAME, groupName);
 		return props;
 	}
-	
+
 	@Override
 	public Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort,
 			String groupName) {
 		final Hashtable<String, Object> eventLoopProperties = new Hashtable<>();
 		eventLoopProperties.put(NettyApi.EventLoopGroup.APP_NAME, appName);
 		// Only target on app name for now. That should become "userInfo"
-//		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
-//		eventLoopProperties.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
+		// eventLoopProperties.put(NettyApi.EventLoopGroup.INET_HOST, inetHost);
+		// eventLoopProperties.put(NettyApi.EventLoopGroup.INET_PORT, inetPort);
 		eventLoopProperties.put(NettyApi.EventLoopGroup.GROUP_NAME, groupName);
 		return eventLoopProperties;
 	}
@@ -470,21 +516,23 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
 
 		// Target event group
-		String eventGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.EventLoopGroup.PID, appName, hostname, port,
-				ReferenceName.NettyClient.EVENT_LOOP_GROUP);
+		String eventGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID,
+				NettyApi.EventLoopGroup.PID, appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
 		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
 
 		// Bootstrap target, using optional server app name too
-//		String bootstrapTemplate = serverAppName.isPresent() ? "(&(%s=%s)(%s=%s)(%s=%d))"
-//				: "(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))";
+		// String bootstrapTemplate = serverAppName.isPresent() ?
+		// "(&(%s=%s)(%s=%s)(%s=%d))"
+		// : "(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))";
 		// String.format ignores extra arguments
-		
-		String bootstrapTarget = createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.Bootstrap.PID,
-				bootstrapProperties(appName, hostname, port, serverAppName));
-		
-//		String bootstrapTarget = String.format(bootstrapTemplate, Property.Bootstrap.APP_NAME, appName,
-//				Property.Bootstrap.INET_HOST, hostname, Property.Bootstrap.INET_PORT, port,
-//				Property.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
+
+		String bootstrapTarget = createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID,
+				NettyApi.Bootstrap.PID, bootstrapProperties(appName, hostname, port, serverAppName));
+
+		// String bootstrapTarget = String.format(bootstrapTemplate,
+		// Property.Bootstrap.APP_NAME, appName,
+		// Property.Bootstrap.INET_HOST, hostname, Property.Bootstrap.INET_PORT, port,
+		// Property.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
 		props.put(ReferenceName.NettyClient.BOOTSTRAP_TARGET, bootstrapTarget);
 
 		props.put(NettyApi.NettyClient.INET_HOST, hostname);
@@ -495,8 +543,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		props.put(NettyApi.NettyClient.SHUTDOWN_GROUP, shutdownGroup.orElse(true));
 		return props;
 	}
-	
-	
+
 	@Override
 	public Map<String, Object> fromOptionalExtraProperties(Optional<Map<String, Object>> extraProperties) {
 		final Map<String, Object> results = new HashMap<>();
@@ -526,10 +573,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	public String channelTarget(String appName, String inetHost, Integer inetPort, String channelId) {
 		return createFilterFromDictionary(channelProperties(appName, inetHost, inetPort, channelId));
 	}
-	
+
 	@Override
-	public String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String groupName) {
-		return createFilterFromDictionary(pidKey, pidValue, eventLoopGroupProperties(appName, inetHost, inetPort, groupName));
+	public String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost,
+			Integer inetPort, String groupName) {
+		return createFilterFromDictionary(pidKey, pidValue,
+				eventLoopGroupProperties(appName, inetHost, inetPort, groupName));
 	}
 
 }

@@ -36,6 +36,7 @@ public interface ConfigurationUtil {
 				handlerNames.toArray(EMPTY_ARRAY), extraProperties);
 	}
 
+	String ldapSearchEscape(String unescaped);
 	
 	String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties);
 	
