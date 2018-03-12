@@ -14,6 +14,24 @@ public interface NettyApi {
 	
 	String CHANNEL_ID = "channelId";
 
+
+	@interface Bootstrap {
+		String PID = "io.netty.bootstrap.Bootstrap";
+
+		String APP_NAME = NettyApi.APP_NAME;
+		String appName();
+
+		String INET_HOST = NettyApi.INET_HOST;
+		String inetHost();
+
+		String INET_PORT = NettyApi.INET_PORT;
+		int inetPort();
+
+		String SERVER_APP_NAME = NettyApi.NettyClient.SERVER_APP_NAME;
+		String serverAppName() default "";
+	}
+
+	
 	@interface EventLoopGroup {
 		String PID = "io.netty.channel.EventLoopGroup";
 		String NAME = "nettyEventLoopGroup";

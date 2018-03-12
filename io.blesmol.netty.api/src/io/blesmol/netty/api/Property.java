@@ -46,13 +46,13 @@ public interface Property {
 	interface ChannelInitializer extends HandlerConfig {
 	}
 
-	interface Bootstrap {
-		String INET_HOST = "inetHost";
-		String INET_PORT = "inetPort";
-		String APP_NAME = Property.APP_NAME;
-		String SERVER_APP_NAME = NettyApi.NettyClient.SERVER_APP_NAME;
-	}
-	
+//	interface Bootstrap {
+//		String INET_HOST = "inetHost";
+//		String INET_PORT = "inetPort";
+//		String APP_NAME = Property.APP_NAME;
+//		String SERVER_APP_NAME = NettyApi.NettyClient.SERVER_APP_NAME;
+//	}
+//	
 	interface ServerBootstrap {
 		String INET_HOST = "inetHost";
 		String INET_PORT = "inetPort";

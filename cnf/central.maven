@@ -28,3 +28,4 @@ net.bytebuddy:byte-buddy:jar:1.7.10
 net.bytebuddy:byte-buddy-agent:jar:1.7.10
 org.ops4j.pax.logging:pax-logging-api:jar:1.10.1
 org.ops4j.pax.logging:pax-logging-service:jar:1.10.1
+org.slf4j:slf4j-api:jar:1.7.25

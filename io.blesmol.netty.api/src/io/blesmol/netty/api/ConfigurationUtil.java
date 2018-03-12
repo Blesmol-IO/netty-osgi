@@ -6,6 +6,8 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
 
 import org.osgi.annotation.versioning.ProviderType;
 import org.osgi.service.cm.Configuration;
@@ -34,6 +36,13 @@ public interface ConfigurationUtil {
 				handlerNames.toArray(EMPTY_ARRAY), extraProperties);
 	}
 
+	
+	String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties);
+	
+	String createFilterFromDictionary(String pidKey, String pidValue, Dictionary<String, Object> properties);
+
+	Callable<Set<String>> getOrCreate(List<String> factoryPids, Map<String, Object> properties);
+	
 	// CREATE
 
 	List<String> createNettyServer(String appName, String hostname, Integer port, List<String> factoryPids,
@@ -86,6 +95,9 @@ public interface ConfigurationUtil {
 
 	// PROPERTIES
 
+	Hashtable<String, Object> bootstrapProperties(String appName, String inetHost, int inetPort,
+			Optional<String> serverAppName);
+	
 	Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort,
 			String handlerName, String channelId, Optional<Map<String, Object>> extraProperties);
 
@@ -97,8 +109,14 @@ public interface ConfigurationUtil {
 	Hashtable<String, Object> dynamicHandlerProperties(String channelId, String appName, String hostname, int port,
 			String[] factoryPids, String[] handlerNames, Optional<Map<String, Object>> extraProperties);
 
+	Hashtable<String, Object> eventExecutorGroupProperties(String appName, String inetHost, Integer inetPort, String groupName);
+
 	Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort,
 			String groupName);
+
+	Hashtable<String, Object> nettyClientProperties(String appName, String hostname, Integer port, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName,
+			Optional<Boolean> shutdownGroup);
 
 	Optional<Map<String, Object>> toOptionalExtraProperties(Map<String, Object> properties);
 

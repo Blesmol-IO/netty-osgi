@@ -5,7 +5,8 @@
 	io.netty.transport;version=4.1,\
 	io.netty.common;version=4.1,\
 	io.netty.buffer;version=4.1,\
-	io.blesmol.netty.api;version=latest
+	io.blesmol.netty.api;version=latest,\
+	slf4j.api;version=1.7
 
 -testpath: \
 	${junit}
