@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Dictionary;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -15,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -87,25 +85,12 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 				.collect(Collectors.joining());
 	}
 
-	List<Configuration> getConfigurations(String factoryPid, Dictionary<String, Object> properties) throws Exception {
+	List<Configuration> getConfigurations(String factoryPid, Hashtable<String, Object> properties) throws Exception {
 		final Configuration[] configurations = admin.listConfigurations(
-				createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid, properties));
+				createFilterFromMap(ConfigurationAdmin.SERVICE_FACTORYPID, factoryPid, properties));
 		return (configurations == null) ? Collections.emptyList() : Arrays.asList(configurations);
 	}
 
-	String createFilterFromDictionary(Dictionary<String, Object> properties) {
-		final Enumeration<String> keys = properties.keys();
-		final StringBuilder sb = new StringBuilder("(&");
-		while (keys.hasMoreElements()) {
-			String key = keys.nextElement();
-			sb.append(String.format("(%s=%s)", ldapSearchEscape(key), ldapSearchEscape(properties.get(key).toString())));
-		}
-		sb.append(")");
-		return sb.toString();
-
-	}
-
-	
 	// https://stackoverflow.com/a/46008789
 	// Copyright issues!
 	// Maybe replace with Spring LDAP filter from spring-ldap-core? 
@@ -187,19 +172,21 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		return sb.toString();
 	}
 
-	@Override
-	public String createFilterFromDictionary(String pidKey, String pidValue, Dictionary<String, Object> properties) {
-		final Enumeration<String> keys = properties.keys();
-		final StringBuilder sb = new StringBuilder("(&");
-		sb.append(String.format("(%s=%s)", pidKey, pidValue));
-		while (keys.hasMoreElements()) {
-			String key = keys.nextElement();
-			sb.append(String.format("(%s=%s)", key, properties.get(key)));
-		}
-		sb.append(")");
-		return sb.toString();
-
-	}
+//	@Override
+//	public String createFilterFromDictionary(String pidKey, String pidValue, Hashtable<String, Object> properties) {
+//		final Enumeration<String> keys = properties.keys();
+//		final StringBuilder sb = new StringBuilder("(&");
+//		if (pidKey != null && pidValue != null) {
+//			sb.append(String.format("(%s=%s)", pidKey, pidValue));	
+//		}
+//		while (keys.hasMoreElements()) {
+//			String key = keys.nextElement();
+//			sb.append(String.format("(%s=%s)", key, properties.get(key)));
+//		}
+//		sb.append(")");
+//		return sb.toString();
+//
+//	}
 
 	String createConfiguration(String factoryPid, Dictionary<String, Object> properties) throws Exception {
 		Configuration configuration = admin.createFactoryConfiguration(factoryPid, "?");
@@ -218,7 +205,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 				Set<String> results = new HashSet<>();
 				for (String pid : factoryPids) {
-					final Dictionary<String, Object> dict = new Hashtable<>(properties);
+					final Hashtable<String, Object> dict = new Hashtable<>(properties);
 					List<Configuration> configurations = getConfigurations(pid, dict);
 					if (configurations == null || configurations.isEmpty()) {
 						results.add(createConfiguration(pid, dict));
@@ -558,7 +545,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		// : "(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))";
 		// String.format ignores extra arguments
 
-		String bootstrapTarget = createFilterFromDictionary(ConfigurationAdmin.SERVICE_FACTORYPID,
+		String bootstrapTarget = createFilterFromMap(ConfigurationAdmin.SERVICE_FACTORYPID,
 				NettyApi.Bootstrap.PID, bootstrapProperties(appName, hostname, port, serverAppName));
 
 		// String bootstrapTarget = String.format(bootstrapTemplate,
@@ -603,13 +590,13 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 
 	@Override
 	public String channelTarget(String appName, String inetHost, Integer inetPort, String channelId) {
-		return createFilterFromDictionary(channelProperties(appName, inetHost, inetPort, channelId));
+		return createFilterFromMap(null, null, channelProperties(appName, inetHost, inetPort, channelId));
 	}
 
 	@Override
 	public String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost,
 			Integer inetPort, String groupName) {
-		return createFilterFromDictionary(pidKey, pidValue,
+		return createFilterFromMap(pidKey, pidValue,
 				eventLoopGroupProperties(appName, inetHost, inetPort, groupName));
 	}
 

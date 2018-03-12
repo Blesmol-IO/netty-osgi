@@ -40,8 +40,6 @@ public interface ConfigurationUtil {
 	
 	String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties);
 	
-	String createFilterFromDictionary(String pidKey, String pidValue, Dictionary<String, Object> properties);
-
 	Callable<Set<String>> getOrCreate(List<String> factoryPids, Map<String, Object> properties);
 	
 	// CREATE
