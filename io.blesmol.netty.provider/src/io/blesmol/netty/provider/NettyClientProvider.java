@@ -9,6 +9,8 @@ import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.util.promise.Deferred;
 import org.osgi.util.promise.Promise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.blesmol.netty.api.NettyApi;
 import io.blesmol.netty.api.NettyClient;
@@ -23,29 +25,31 @@ import io.netty.channel.EventLoopGroup;
 @Component(configurationPid = NettyApi.NettyClient.PID, configurationPolicy = ConfigurationPolicy.REQUIRE, immediate = true)
 public class NettyClientProvider implements NettyClient {
 
+	private static final Logger logger = LoggerFactory.getLogger(NettyClient.class);
+
 	private final Deferred<ChannelFuture> deferredChannelFuture = new Deferred<>();
 
 	@Reference(name = ReferenceName.NettyClient.BOOTSTRAP)
 	Bootstrap bootstrap;
 
-	@Reference(name = ReferenceName.NettyClient.EVENT_LOOP_GROUP)
-	EventLoopGroup group;
-
-	@Reference(name = ReferenceName.NettyClient.CHANNEL_INITIALIZER)
-	ChannelInitializer<Channel> channelInitializer;
+//	@Reference(name = ReferenceName.NettyClient.EVENT_LOOP_GROUP)
+//	EventLoopGroup group;
+//
+//	@Reference(name = ReferenceName.NettyClient.CHANNEL_INITIALIZER)
+//	ChannelInitializer<Channel> channelInitializer;
 
 	@Activate
 	void activate(NettyApi.NettyClient config, Map<String, ?> properties) {
-		System.out.println("Activating netty client with properties " + properties);
-		bootstrap.group(group).channel(config.channel()).handler(channelInitializer);
+//		System.out.println("Activating netty client with properties " + properties);
+//		bootstrap.group(group).channel(config.channel()).handler(channelInitializer);
 
 		// https://stackoverflow.com/a/28294255
 		// Always disable; channel handler will enable
-		bootstrap.option(ChannelOption.AUTO_READ, false);
+//		bootstrap.option(ChannelOption.AUTO_READ, false);
 		
 		//bootstrap.option(ChannelOption.SO_KEEPALIVE, false);
 
-		System.out.println(String.format("Connecting to server %s:%d", config.inetHost(), config.inetPort()));
+		logger.debug("Connecting to server {}:{}", config.inetHost(), config.inetPort());
 		deferredChannelFuture.resolve(bootstrap.connect(config.inetHost(), config.inetPort()));
 	}
 
@@ -55,7 +59,7 @@ public class NettyClientProvider implements NettyClient {
 		// Clients being used as a proxy shouldn't shut down their groups
 		// TODO: test
 		if (config.shutdownGroup()) {
-			group.shutdownGracefully();
+			bootstrap.config().group().shutdownGracefully();
 		}
 	}
 

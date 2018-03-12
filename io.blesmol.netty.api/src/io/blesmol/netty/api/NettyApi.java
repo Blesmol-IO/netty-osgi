@@ -1,6 +1,5 @@
 package io.blesmol.netty.api;
 
-import io.blesmol.netty.api.Property.DynamicChannelHandler;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 public interface NettyApi {
@@ -14,6 +13,7 @@ public interface NettyApi {
 	
 	String CHANNEL_ID = "channelId";
 
+	String DOT_TARGET = ".target";
 
 	@interface Bootstrap {
 		String PID = "io.netty.bootstrap.Bootstrap";
@@ -29,6 +29,13 @@ public interface NettyApi {
 
 		String SERVER_APP_NAME = NettyApi.NettyClient.SERVER_APP_NAME;
 		String serverAppName() default "";
+		
+		@interface Reference {
+			String CHANNEL_INITIALIZER = "channelInitializer";
+			String CHANNEL_INITIALIZER_TARGET = CHANNEL_INITIALIZER + DOT_TARGET;
+			String EVENT_LOOP_GROUP = "nettyClientGroup";
+			String EVENT_LOOP_GROUP_TARGET = EVENT_LOOP_GROUP + DOT_TARGET;
+		}
 	}
 
 	
@@ -99,6 +106,7 @@ public interface NettyApi {
 
 		String[] handlerNames();
 
+		// TODO: move to channel factory / provider since Meta type services can't support classes
 		String CHANNEL = "channel";
 
 		Class<? extends io.netty.channel.Channel> channel() default NioSocketChannel.class;
@@ -111,6 +119,7 @@ public interface NettyApi {
 		String SHUTDOWN_GROUP = "shutdownGroup";
 
 		boolean shutdownGroup() default true;
+		
 	}
 	
 	@interface ChannelHandler {

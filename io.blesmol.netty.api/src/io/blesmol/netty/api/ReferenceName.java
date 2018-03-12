@@ -25,10 +25,10 @@ public interface ReferenceName {
 	interface NettyClient {
 		String BOOTSTRAP = "bootstrap";
 		String BOOTSTRAP_TARGET = BOOTSTRAP + DOT_TARGET;
-		String CHANNEL_INITIALIZER = "channelInitializer";
-		String CHANNEL_INITIALIZER_TARGET = CHANNEL_INITIALIZER + DOT_TARGET;
-		String EVENT_LOOP_GROUP = "nettyClientGroup";
-		String EVENT_LOOP_GROUP_TARGET = EVENT_LOOP_GROUP + DOT_TARGET;
+//		String CHANNEL_INITIALIZER = "channelInitializer";
+//		String CHANNEL_INITIALIZER_TARGET = CHANNEL_INITIALIZER + DOT_TARGET;
+//		String EVENT_LOOP_GROUP = "nettyClientGroup";
+//		String EVENT_LOOP_GROUP_TARGET = EVENT_LOOP_GROUP + DOT_TARGET;
 
 	}
 

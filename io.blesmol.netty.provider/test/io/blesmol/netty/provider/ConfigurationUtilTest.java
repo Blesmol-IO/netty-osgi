@@ -45,7 +45,8 @@ public class ConfigurationUtilTest {
 		assertTrue(actual.contains("(a=b)"));
 		assertTrue(actual.contains("(boolean=false)"));
 		assertTrue(actual.contains("(port=50)"));
-		assertTrue(actual.contains("(foo.target=\\28&\\28a=b\\29\\28c=d\\29\\29)"));
+		// Targets ignored for filters
+		assertTrue(!actual.contains("foo.target"));
 		assertTrue(actual.contains("(stringArray=c)"));
 		assertTrue(actual.contains("(stringArray=\\28\\2a\\29)"));
 		assertTrue(actual.contains("(listString=a)"));

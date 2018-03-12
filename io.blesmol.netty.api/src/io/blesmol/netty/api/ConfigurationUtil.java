@@ -37,11 +37,11 @@ public interface ConfigurationUtil {
 	}
 
 	String ldapSearchEscape(String unescaped);
-	
+
 	String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties);
-	
+
 	Callable<Set<String>> getOrCreate(List<String> factoryPids, Map<String, Object> properties);
-	
+
 	// CREATE
 
 	List<String> createNettyServer(String appName, String hostname, Integer port, List<String> factoryPids,
@@ -60,7 +60,12 @@ public interface ConfigurationUtil {
 
 	String createServerBootstrapProvider(String appName, String hostname, int port) throws Exception;
 
-	String createBootstrapProvider(String appName, String hostname, int port, Optional<String> serverAppName)
+	List<String> createBootstrap(String appName, String hostname, int port, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName)
+			throws Exception;
+
+	String createBootstrapConfig(String appName, String inetHost, int inetPort, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName)
 			throws Exception;
 
 	String createEventLoopGroup(String appName, String inetHost, Integer inetPort, String groupName) throws Exception;
@@ -69,9 +74,11 @@ public interface ConfigurationUtil {
 			throws Exception;
 
 	/**
-	 * Requires a factory pid since channels are created by netty and registered later
+	 * Requires a factory pid since channels are created by netty and registered
+	 * later
 	 */
-	String createChannelConfig(String factoryPid, String appName, String inetHost, Integer inetPort, String channelId) throws Exception;
+	String createChannelConfig(String factoryPid, String appName, String inetHost, Integer inetPort, String channelId)
+			throws Exception;
 
 	List<String> createChannelInitializer(String appName, String hostname, int port, List<String> factoryPids,
 			List<String> handlerNames, Optional<Map<String, Object>> extraProperties) throws Exception;
@@ -95,8 +102,9 @@ public interface ConfigurationUtil {
 	// PROPERTIES
 
 	Hashtable<String, Object> bootstrapProperties(String appName, String inetHost, int inetPort,
+			List<String> factoryPids, List<String> handlerNames, Optional<Map<String, Object>> extraProperties,
 			Optional<String> serverAppName);
-	
+
 	Hashtable<String, Object> channelHandlerProperties(String appName, String inetHost, int inetPort,
 			String handlerName, String channelId, Optional<Map<String, Object>> extraProperties);
 
@@ -108,14 +116,15 @@ public interface ConfigurationUtil {
 	Hashtable<String, Object> dynamicHandlerProperties(String channelId, String appName, String hostname, int port,
 			String[] factoryPids, String[] handlerNames, Optional<Map<String, Object>> extraProperties);
 
-	Hashtable<String, Object> eventExecutorGroupProperties(String appName, String inetHost, Integer inetPort, String groupName);
+	Hashtable<String, Object> eventExecutorGroupProperties(String appName, String inetHost, Integer inetPort,
+			String groupName);
 
 	Hashtable<String, Object> eventLoopGroupProperties(String appName, String inetHost, Integer inetPort,
 			String groupName);
 
-	Hashtable<String, Object> nettyClientProperties(String appName, String hostname, Integer port, List<String> factoryPids,
-			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName,
-			Optional<Boolean> shutdownGroup);
+	Hashtable<String, Object> nettyClientProperties(String appName, String hostname, Integer port,
+			List<String> factoryPids, List<String> handlerNames, Optional<Map<String, Object>> extraProperties,
+			Optional<String> serverAppName, Optional<Boolean> shutdownGroup);
 
 	Optional<Map<String, Object>> toOptionalExtraProperties(Map<String, Object> properties);
 
@@ -125,6 +134,7 @@ public interface ConfigurationUtil {
 
 	String channelTarget(String appName, String inetHost, Integer inetPort, String channelId);
 
-	String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort, String groupName);
+	String eventLoopGroupTarget(String pidKey, String pidValue, String appName, String inetHost, Integer inetPort,
+			String groupName);
 
 }

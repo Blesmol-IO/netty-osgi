@@ -133,6 +133,11 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	String toEscapedFilter(String key, Object value) {
 		if (value == null) return "";
 
+		// Ignore targets when creating a filter
+		if (key.endsWith(".target")) {
+			return "";
+		}
+		
 		StringBuilder sb = new StringBuilder();
 		if (value instanceof Collection) {
 			Collection collection = (Collection)value;
@@ -168,7 +173,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		if (pidKey != null && pidValue != null) {
 			sb.append(String.format("(%s=%s)", ldapSearchEscape(pidKey), ldapSearchEscape(pidValue)));
 		}
-		properties.entrySet().stream().map(es -> toEscapedFilter(es.getKey(), es.getValue()))
+		properties.entrySet().stream().map(es -> toEscapedFilter(es.getKey(), es.getValue())).filter(f -> (f != null && !f.isEmpty()))
 				.forEach(sb::append);
 		sb.append(")");
 		return sb.toString();
@@ -292,9 +297,9 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 			Optional<Boolean> shutdownGroup) throws Exception {
 
 		final List<String> results = new ArrayList<>();
-		results.add(createBootstrapProvider(appName, hostname, port, serverAppName));
-		results.add(createEventLoopGroup(appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
-		results.addAll(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
+		results.addAll(createBootstrap(appName, hostname, port, factoryPids, handlerNames, extraProperties, serverAppName));
+//		results.add(createEventLoopGroup(appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP));
+//		results.addAll(createChannelInitializer(appName, hostname, port, factoryPids, handlerNames, extraProperties));
 		results.add(createNettyClientConfig(appName, hostname, port, factoryPids, handlerNames, extraProperties,
 				serverAppName, shutdownGroup));
 		return results;
@@ -310,9 +315,22 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
-	public String createBootstrapProvider(String appName, String hostname, int port, Optional<String> serverAppName)
+	public List<String> createBootstrap(String appName, String inetHost, int inetPort, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName)
 			throws Exception {
-		final Hashtable<String, Object> props = bootstrapProperties(appName, hostname, port, serverAppName);
+		final List<String> results = new ArrayList<>();
+		results.add(createBootstrapConfig(appName, inetHost, inetPort, factoryPids, handlerNames, extraProperties, serverAppName));
+		results.add(createEventLoopGroup(appName, inetHost, inetPort, NettyApi.Bootstrap.Reference.EVENT_LOOP_GROUP));
+		results.addAll(createChannelInitializer(appName, inetHost, inetPort, factoryPids, handlerNames, extraProperties));
+
+		return results;
+	}
+	
+	@Override
+	public String createBootstrapConfig(String appName, String inetHost, int inetPort, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, Optional<String> serverAppName)
+			throws Exception {
+		final Hashtable<String, Object> props = bootstrapProperties(appName, inetHost, inetPort, factoryPids, handlerNames, extraProperties, serverAppName);
 		return createConfiguration(NettyApi.Bootstrap.PID, props);
 	}
 
@@ -415,13 +433,33 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	// PROPERTIES
 
 	@Override
-	public Hashtable<String, Object> bootstrapProperties(String appName, String inetHost, int inetPort,
+	public Hashtable<String, Object> bootstrapProperties(String appName, String inetHost, int inetPort, List<String> factoryPids,
+			List<String> handlerNames, Optional<Map<String, Object>> extraProperties, 
 			Optional<String> serverAppName) {
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(NettyApi.Bootstrap.APP_NAME, appName);
 		props.put(NettyApi.Bootstrap.INET_HOST, inetHost);
 		props.put(NettyApi.Bootstrap.INET_PORT, inetPort);
 		props.put(NettyApi.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
+		
+		String channelInitializerTarget = createFilterFromMap(ConfigurationAdmin.SERVICE_FACTORYPID, NettyApi.ChannelInitializer.PID,
+				channelInitializerProperties(appName, inetHost, inetPort, factoryPids.toArray(EMPTY_ARRAY), handlerNames.toArray(EMPTY_ARRAY), extraProperties));
+
+		// FIXME: ldap injection
+////		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)%s%s)",
+////				NettyApi.ChannelInitializer.APP_NAME, appName, NettyApi.ChannelInitializer.INET_HOST, hostname,
+////				NettyApi.ChannelInitializer.INET_PORT, port,
+////				listFilter(NettyApi.ChannelInitializer.FACTORY_PIDS, factoryPids),
+////				listFilter(NettyApi.ChannelInitializer.HANDLER_NAMES, handlerNames));
+//		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
+		props.put(NettyApi.Bootstrap.Reference.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
+
+		// Target event group
+		String eventGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID,
+				NettyApi.EventLoopGroup.PID, appName, inetHost, inetPort, NettyApi.Bootstrap.Reference.EVENT_LOOP_GROUP);
+		props.put(NettyApi.Bootstrap.Reference.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
+
+		
 		return props;
 	}
 
@@ -524,42 +562,19 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	}
 
 	@Override
-	public Hashtable<String, Object> nettyClientProperties(String appName, String hostname, Integer port,
+	public Hashtable<String, Object> nettyClientProperties(String appName, String inetHost, Integer inetPort,
 			List<String> factoryPids, List<String> handlerNames, Optional<Map<String, Object>> extraProperties,
 			Optional<String> serverAppName, Optional<Boolean> shutdownGroup) {
 		final Hashtable<String, Object> props = new Hashtable<>();
 		props.put(NettyApi.NettyClient.APP_NAME, appName);
 
-		// FIXME: ldap injection
-		String channelInitializerTarget = String.format("(&(%s=%s)(%s=%s)(%s=%d)%s%s)",
-				NettyApi.ChannelInitializer.APP_NAME, appName, NettyApi.ChannelInitializer.INET_HOST, hostname,
-				NettyApi.ChannelInitializer.INET_PORT, port,
-				listFilter(NettyApi.ChannelInitializer.FACTORY_PIDS, factoryPids),
-				listFilter(NettyApi.ChannelInitializer.HANDLER_NAMES, handlerNames));
-		props.put(ReferenceName.NettyClient.CHANNEL_INITIALIZER_TARGET, channelInitializerTarget);
-
-		// Target event group
-		String eventGroupTarget = eventLoopGroupTarget(ConfigurationAdmin.SERVICE_FACTORYPID,
-				NettyApi.EventLoopGroup.PID, appName, hostname, port, ReferenceName.NettyClient.EVENT_LOOP_GROUP);
-		props.put(ReferenceName.NettyClient.EVENT_LOOP_GROUP_TARGET, eventGroupTarget);
-
-		// Bootstrap target, using optional server app name too
-		// String bootstrapTemplate = serverAppName.isPresent() ?
-		// "(&(%s=%s)(%s=%s)(%s=%d))"
-		// : "(&(%s=%s)(%s=%s)(%s=%d)(%s=%s))";
-		// String.format ignores extra arguments
-
 		String bootstrapTarget = createFilterFromMap(ConfigurationAdmin.SERVICE_FACTORYPID,
-				NettyApi.Bootstrap.PID, bootstrapProperties(appName, hostname, port, serverAppName));
+				NettyApi.Bootstrap.PID, bootstrapProperties(appName, inetHost, inetPort, factoryPids, handlerNames, extraProperties, serverAppName));
 
-		// String bootstrapTarget = String.format(bootstrapTemplate,
-		// Property.Bootstrap.APP_NAME, appName,
-		// Property.Bootstrap.INET_HOST, hostname, Property.Bootstrap.INET_PORT, port,
-		// Property.Bootstrap.SERVER_APP_NAME, serverAppName.orElse(""));
 		props.put(ReferenceName.NettyClient.BOOTSTRAP_TARGET, bootstrapTarget);
 
-		props.put(NettyApi.NettyClient.INET_HOST, hostname);
-		props.put(NettyApi.NettyClient.INET_PORT, port);
+		props.put(NettyApi.NettyClient.INET_HOST, inetHost);
+		props.put(NettyApi.NettyClient.INET_PORT, inetPort);
 		props.put(NettyApi.NettyClient.FACTORY_PIDS, factoryPids.toArray(EMPTY_ARRAY));
 		props.put(NettyApi.NettyClient.HANDLER_NAMES, handlerNames.toArray(EMPTY_ARRAY));
 		props.put(NettyApi.NettyClient.SERVER_APP_NAME, serverAppName.orElse(""));
