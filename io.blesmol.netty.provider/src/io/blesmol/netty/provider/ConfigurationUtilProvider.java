@@ -165,7 +165,9 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	@Override
 	public String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties) {
 		final StringBuilder sb = new StringBuilder("(&");
-		sb.append(String.format("(%s=%s)", ldapSearchEscape(pidKey), ldapSearchEscape(pidValue)));
+		if (pidKey != null && pidValue != null) {
+			sb.append(String.format("(%s=%s)", ldapSearchEscape(pidKey), ldapSearchEscape(pidValue)));
+		}
 		properties.entrySet().stream().map(es -> toEscapedFilter(es.getKey(), es.getValue()))
 				.forEach(sb::append);
 		sb.append(")");
