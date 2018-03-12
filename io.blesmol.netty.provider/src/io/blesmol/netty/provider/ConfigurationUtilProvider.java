@@ -98,7 +98,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		final StringBuilder sb = new StringBuilder("(&");
 		while (keys.hasMoreElements()) {
 			String key = keys.nextElement();
-			sb.append(String.format("(%s=%s)", ldapSearchEscape(key), ldapSearchEscape((String)properties.get(key))));
+			sb.append(String.format("(%s=%s)", ldapSearchEscape(key), ldapSearchEscape(properties.get(key).toString())));
 		}
 		sb.append(")");
 		return sb.toString();
@@ -144,14 +144,46 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 	    if (s.length()==1) return "0"+s;
 	    else return s;
 	}
+	
+	String toEscapedFilter(String key, Object value) {
+		if (value == null) return "";
 
-	// FIXME: No LDAP escaping perform
+		StringBuilder sb = new StringBuilder();
+		if (value instanceof Collection) {
+			Collection collection = (Collection)value;
+			for (Object o : collection) {
+				sb.append(String.format("(%s=%s)", ldapSearchEscape(key), toEscapedValue(o)));
+			}
+		} else if (value.getClass().isArray()) {
+			Object[] array = (Object[]) value;
+			for (Object o : array) {
+				sb.append(String.format("(%s=%s)", ldapSearchEscape(key), toEscapedValue(o)));
+			}
+		} else {
+			sb.append(String.format("(%s=%s)", ldapSearchEscape(key), toEscapedValue(value)));
+		}
+		return sb.toString();
+	}
+	
+	String toEscapedValue(Object value) {
+//		if (true) return value.toString();
+		if (value == null) return "";
+
+		if (value instanceof Boolean || value instanceof Integer || value instanceof String) {
+			return ldapSearchEscape(value.toString());
+		} else {
+			logger.warn("Invalid type {} passed to toEscapedFilter via object {}", value.getClass(), value);
+			return "";
+		}
+	}
+	
 	@Override
 	public String createFilterFromMap(String pidKey, String pidValue, Map<String, Object> properties) {
 		final StringBuilder sb = new StringBuilder("(&");
 		sb.append(String.format("(%s=%s)", ldapSearchEscape(pidKey), ldapSearchEscape(pidValue)));
-		properties.entrySet().stream().map(es -> String.format("(%s=%s)", ldapSearchEscape(es.getKey()), ldapSearchEscape((String)es.getValue())))
+		properties.entrySet().stream().map(es -> toEscapedFilter(es.getKey(), es.getValue()))
 				.forEach(sb::append);
+		sb.append(")");
 		return sb.toString();
 	}
 
