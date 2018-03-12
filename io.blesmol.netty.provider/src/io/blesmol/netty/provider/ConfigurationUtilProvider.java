@@ -58,7 +58,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 		}
 
 		// TODO trace log
-		System.out.println("Deactivating configuration utility provider");
+		logger.debug("Deactivating configuration utility provider");
 		configurations.forEach(c -> {
 			try {
 				c.delete();
@@ -210,6 +210,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 					final Hashtable<String, Object> dict = new Hashtable<>(properties);
 					List<Configuration> configurations = getConfigurations(pid, dict);
 					if (configurations == null || configurations.isEmpty()) {
+						logger.debug("No configuration found for pid {} and properties {}, creating one.", pid, dict);
 						results.add(createConfiguration(pid, dict));
 					} else {
 						if (configurations.size() > 1) {
@@ -218,6 +219,7 @@ public class ConfigurationUtilProvider implements ConfigurationUtil {
 									configurations.size(), pid, properties);
 							throw new IllegalStateException("Too many configurations");
 						} else {
+							logger.debug("A configuration found for pid {} and properties {}, not creating.", pid, dict);
 							results.add(configurations.get(0).getPid());
 						}
 
